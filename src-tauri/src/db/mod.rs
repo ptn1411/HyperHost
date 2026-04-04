@@ -1,0 +1,136 @@
+use rusqlite::{params, Connection};
+use std::path::Path;
+use std::sync::Mutex;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DomainConfig {
+    pub id: Option<i64>,
+    pub domain: String,
+    pub upstream: String,
+    pub enabled: bool,
+    pub cert_expiry: Option<String>,
+    pub created_at: Option<String>,
+    pub advanced_config: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct DomainStatus {
+    pub config: DomainConfig,
+    pub cert_valid: bool,
+    pub cert_expiry: Option<String>,
+}
+
+pub struct Database {
+    conn: Mutex<Connection>,
+}
+
+impl Database {
+    pub fn open(db_path: &Path) -> anyhow::Result<Self> {
+        if let Some(parent) = db_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let conn = Connection::open(db_path)?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS domains (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                domain      TEXT NOT NULL UNIQUE,
+                upstream    TEXT NOT NULL,
+                enabled     INTEGER NOT NULL DEFAULT 1,
+                cert_pem    TEXT,
+                key_pem     TEXT,
+                cert_expiry TEXT,
+                created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+                advanced_config TEXT
+            );",
+        )?;
+        
+        // Auto-migrate schema for existing databases
+        let _ = conn.execute("ALTER TABLE domains ADD COLUMN advanced_config TEXT", []);
+
+        tracing::info!("Database opened at {}", db_path.display());
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
+    }
+
+    pub fn upsert_domain(&self, cfg: &DomainConfig, cert_pem: &str, key_pem: &str) -> anyhow::Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO domains (domain, upstream, enabled, cert_pem, key_pem, cert_expiry, advanced_config)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+             ON CONFLICT(domain) DO UPDATE SET
+                upstream    = excluded.upstream,
+                enabled     = excluded.enabled,
+                cert_pem    = excluded.cert_pem,
+                key_pem     = excluded.key_pem,
+                cert_expiry = excluded.cert_expiry,
+                advanced_config = excluded.advanced_config,
+                updated_at  = datetime('now')",
+            params![
+                cfg.domain,
+                cfg.upstream,
+                cfg.enabled as i32,
+                cert_pem,
+                key_pem,
+                cfg.cert_expiry,
+                cfg.advanced_config.as_deref(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_domains(&self) -> anyhow::Result<Vec<DomainConfig>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, domain, upstream, enabled, cert_expiry, created_at, advanced_config FROM domains ORDER BY id",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(DomainConfig {
+                id: Some(row.get(0)?),
+                domain: row.get(1)?,
+                upstream: row.get(2)?,
+                enabled: row.get::<_, i32>(3)? != 0,
+                cert_expiry: row.get(4)?,
+                created_at: row.get(5)?,
+                advanced_config: row.get(6)?,
+            })
+        })?;
+        let mut result = Vec::new();
+        for row in rows {
+            result.push(row?);
+        }
+        Ok(result)
+    }
+
+    pub fn list_enabled_domains(&self) -> anyhow::Result<Vec<String>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT domain FROM domains WHERE enabled = 1")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        let mut result = Vec::new();
+        for row in rows {
+            result.push(row?);
+        }
+        Ok(result)
+    }
+
+    pub fn remove_domain(&self, domain: &str) -> anyhow::Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM domains WHERE domain = ?1", params![domain])?;
+        Ok(())
+    }
+
+    pub fn toggle_domain(&self, domain: &str) -> anyhow::Result<bool> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE domains SET enabled = 1 - enabled, updated_at = datetime('now') WHERE domain = ?1",
+            params![domain],
+        )?;
+        let new_state: bool = conn.query_row(
+            "SELECT enabled FROM domains WHERE domain = ?1",
+            params![domain],
+            |row| Ok(row.get::<_, i32>(0)? != 0),
+        )?;
+        Ok(new_state)
+    }
+}

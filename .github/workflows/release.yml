@@ -1,0 +1,51 @@
+name: "Release HyperHost (Windows)"
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: # Cho phép bấm nút kích hoạt thủ công trên Github
+
+jobs:
+  release:
+    permissions:
+      contents: write # Quyền tạo Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm' # Tối ưu tốc độ tải gói
+          cache-dependency-path: 'package-lock.json' 
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Setup Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: 'src-tauri -> target'
+
+      - name: Install Frontend Dependencies
+        run: npm install
+
+      - name: Build Tauri App and Draft Release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          # action tự động nhận cấu hình từ tauri.conf.json và build MSI, EXE
+          tagName: ${{ github.ref_name }} # Tên thẻ Release vd: v1.0.0
+          releaseName: 'HyperHost ${{ github.ref_name }}'
+          releaseBody: 'Phiên bản mới nhất của HyperHost. Tải xuống file setup bên dưới để cài đặt.'
+          releaseDraft: false
+          prerelease: false

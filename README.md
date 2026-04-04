@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/tauri-apps/tauri/HEAD/app-icon.png" width="100" />
+  <img src="https://raw.githubusercontent.com/ptn1411/HyperHost/refs/heads/main/src-tauri/icons/icon.png" width="100" />
   <h1>HyperHost</h1>
   <p><strong>Professional Local Virtual Domain & HTTPS Manager for Windows</strong></p>
 </div>

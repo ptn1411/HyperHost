@@ -12,16 +12,17 @@ Không còn cảnh phải sửa file `hosts` bằng tay, không còn phải loay
 
 ## 🚀 Tính năng nổi bật
 
-*   **⚡ Quản lý tên miền tức thì**: Giao diện UI/UX siêu mượt xây dựng bằng React. Tạo nhanh một tên miền và liên kết tới một cổng Upstream (VD: `localhost:3000`) chỉ trong 3 giây.
-*   **🔒 HTTPS (SSL) tự động**: Tích hợp cực sâu công cụ chuyên dụng `mkcert`. Tự động đứng ra làm Tổ chức chứng thực (Certificate Authority - CA) của máy tính, cấp chứng chỉ xanh lá cây hợp lệ cho mọi tên miền ảo.
-*   **💻 Text Editor cấp độ Pro**: Tích hợp lõi *Monaco Editor* (công nghệ đằng sau VSCode). Bạn có thể viết và chèn cấu hình Raw Nginx Server blocks/Directives tùy biến với Auto-format cực kì mạnh mẽ.
-*   **👻 Chế độ Background / System Tray**: Hoạt động âm thầm không làm phiền bạn. Khi bấm dấu 'X' để tắt cửa sổ, HyperHost tự giấu mình vào System Tray dưới góc phải màn hình trong khi Nginx vẫn hoạt động mượt mà.
-*   **🔄 Tự động Cập Nhật (Auto-Updater)**: Khi nhà phát triển ra mắt phiên bản mới trên GitHub Releases, HyperHost sẽ tự động mở hộp thoại thông báo tải xuống & cài đặt bản mới trực tiếp nhờ lõi Tauri Updater.
+- **⚡ Quản lý tên miền tức thì**: Giao diện UI/UX siêu mượt xây dựng bằng React. Tạo nhanh một tên miền và liên kết tới một cổng Upstream (VD: `localhost:3000`) chỉ trong 3 giây.
+- **🔒 HTTPS (SSL) tự động**: Tích hợp cực sâu công cụ chuyên dụng `mkcert`. Tự động đứng ra làm Tổ chức chứng thực (Certificate Authority - CA) của máy tính, cấp chứng chỉ xanh lá cây hợp lệ cho mọi tên miền ảo.
+- **💻 Text Editor cấp độ Pro**: Tích hợp lõi _Monaco Editor_ (công nghệ đằng sau VSCode). Bạn có thể viết và chèn cấu hình Raw Nginx Server blocks/Directives tùy biến với Auto-format cực kì mạnh mẽ.
+- **👻 Chế độ Background / System Tray**: Hoạt động âm thầm không làm phiền bạn. Khi bấm dấu 'X' để tắt cửa sổ, HyperHost tự giấu mình vào System Tray dưới góc phải màn hình trong khi Nginx vẫn hoạt động mượt mà.
+- **🔄 Tự động Cập Nhật (Auto-Updater)**: Khi nhà phát triển ra mắt phiên bản mới trên GitHub Releases, HyperHost sẽ tự động mở hộp thoại thông báo tải xuống & cài đặt bản mới trực tiếp nhờ lõi Tauri Updater.
 
 ## 📦 Công nghệ sử dụng
-*   **Backend**: [Rust](https://www.rust-lang.org/) & [Tauri v2](https://v2.tauri.app/).
-*   **Frontend**: [React 18](https://react.dev/), [Vite](https://vitejs.dev/), và [TailwindCSS v4](https://tailwindcss.com/).
-*   **Core Systems**: `nginx` (Máy chủ Proxy), `mkcert` (Quản lý HTTPS), SQLite (Dữ liệu).
+
+- **Backend**: [Rust](https://www.rust-lang.org/) & [Tauri v2](https://v2.tauri.app/).
+- **Frontend**: [React 18](https://react.dev/), [Vite](https://vitejs.dev/), và [TailwindCSS v4](https://tailwindcss.com/).
+- **Core Systems**: `nginx` (Máy chủ Proxy), `mkcert` (Quản lý HTTPS), SQLite (Dữ liệu).
 
 ## 📥 Tải xuống & Cài đặt
 
@@ -37,29 +38,32 @@ Nếu bạn muốn đóng góp code hoặc tự Build từ gốc, hãy làm theo
 
 1.  **Clone mã nguồn**:
     ```bash
-    git clone https://github.com/USERNAME/REPO.git
-    cd REPO
+    git clone https://github.com/ptn1411/HyperHost.git
+    cd HyperHost
     ```
-    
 2.  **Cài đặt thư viện Frontend**:
+
     ```bash
     npm install
     ```
 
 3.  **Khởi chạy chế độ Phát triển (Dev Mode)**:
+
     ```bash
     npm run tauri dev
     ```
 
 4.  **Đóng gói (Build) ra file Exe**:
+
     ```bash
     # (Tùy chọn) Nếu bạn muốn Build Updater, hãy nạp biến môi trường
-    # $env:TAURI_PRIVATE_KEY="<Private-Key>" 
-    
+    # $env:TAURI_PRIVATE_KEY="<Private-Key>"
+
     npm run tauri build
     ```
 
-*Lưu ý: Kho chứa không đẩy file `updater_keys` (Private Key) để bảo mật chống giả mạo cập nhật. Bạn phải sử dụng khóa của chính mình nếu tự build và muốn dùng Updater.*
+_Lưu ý: Kho chứa không đẩy file `updater_keys` (Private Key) để bảo mật chống giả mạo cập nhật. Bạn phải sử dụng khóa của chính mình nếu tự build và muốn dùng Updater._
 
 ## 📄 Giấy phép (License)
+
 Dự án được mở mã nguồn dưới chứng chỉ MIT. Bạn hoàn toàn có thể tự do chỉnh sửa và sử dụng.

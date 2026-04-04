@@ -48,7 +48,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVBREY1QUIxQUQyOEJCQgpSV1M3aTlJYXEvV3RCYnRnWXNMK0hWcFRBWSt2d1puYW9aWk50NC9FNmh3VldCUUJmbTBaNHZxbAo=",
       "endpoints": [
-        "https://github.com/USERNAME/REPO/releases/latest/download/latest.json"
+        "https://github.com/ptn1411/HyperHost/releases/latest/download/latest.json"
       ]
     },
     "shell": {

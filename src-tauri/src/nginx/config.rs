@@ -19,6 +19,9 @@ http {{
     server_tokens off;
 
     # HTTP → redirect all to HTTPS
+    log_format json_log escape=json '{{"time":"$time_iso8601","host":"$host","method":"$request_method","uri":"$request_uri","status":$status,"latency":"$request_time","req_body":"$request_body"}}';
+    access_log "{nginx_dir}/logs/access.json" json_log;
+
     server {{
         listen 80;
         server_name _;

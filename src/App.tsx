@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { api, DomainStatus, CaStatus, NginxInfo } from "./lib/tauri";
 import { NginxEditorMode } from "./components/NginxEditorMode";
 import { UpdateDialog } from "./components/UpdateDialog";
+import { TrafficInspector } from "./components/TrafficInspector";
+import { listen } from "@tauri-apps/api/event";
 
 function App() {
   const [domains, setDomains] = useState<DomainStatus[]>([]);
@@ -15,6 +17,8 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [showLogs, setShowLogs] = useState(false);
+  const [activeTab, setActiveTab] = useState<"domains" | "traffic">("domains");
+  const [tunnels, setTunnels] = useState<Record<string, {url: string, loading: boolean}>>({});
 
   const refresh = async () => {
     try {
@@ -31,7 +35,18 @@ function App() {
     }
   };
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { 
+    refresh(); 
+    const unlisten = listen<{domain: string, url: string}>("tunnel_ready", (event) => {
+      setTunnels((prev) => ({
+        ...prev,
+        [event.payload.domain]: { url: event.payload.url, loading: false }
+      }));
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
 
   const handleSaveDomain = async (parsedDomain: string, parsedUpstream: string, parsedAdvanced: string) => {
     setLoading(true);
@@ -111,6 +126,20 @@ function App() {
     }
   };
 
+  const toggleTunnel = async (domain: string) => {
+    if (tunnels[domain] && !tunnels[domain].loading) {
+      setTunnels((prev) => {
+        const next = { ...prev };
+        delete next[domain];
+        return next;
+      });
+      await api.stopTunnel(domain);
+    } else {
+      setTunnels((prev) => ({ ...prev, [domain]: { url: "", loading: true } }));
+      await api.startTunnel(domain);
+    }
+  };
+
   const handleShowLogs = async () => {
     try {
       const l = await api.getNginxLog(50);
@@ -178,6 +207,22 @@ function App() {
           </div>
         </header>
 
+        {/* Tabs */}
+        <div className="flex items-center gap-1 mb-8 p-1 bg-surface-2 rounded-xl border border-surface-3/50 w-fit">
+          <button
+            onClick={() => setActiveTab("domains")}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "domains" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}
+          >
+            Tên Miền & Proxy
+          </button>
+          <button
+            onClick={() => setActiveTab("traffic")}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "traffic" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}
+          >
+            Live Traffic
+          </button>
+        </div>
+
         {/* Error Banner */}
         {error && (
           <div className="mb-8 p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm flex items-start gap-3 shadow-sm">
@@ -189,6 +234,10 @@ function App() {
           </div>
         )}
 
+        {activeTab === "traffic" ? (
+          <TrafficInspector />
+        ) : (
+          <>
         {editorMode !== "hidden" ? (
           <NginxEditorMode
             isEditing={editorMode === "edit"}
@@ -339,6 +388,30 @@ function App() {
                 </div>
 
                 <div className="flex items-center gap-2 opacity-100 transition-opacity duration-200">
+                  {tunnels[d.config.domain] ? (
+                    <div className="flex items-center gap-2 mr-2">
+                       {tunnels[d.config.domain].loading ? (
+                         <span className="text-xs text-accent animate-pulse">Starting Tunnel...</span>
+                       ) : (
+                         <div className="flex items-center bg-accent/10 border border-accent/20 rounded-lg overflow-hidden">
+                           <a href={tunnels[d.config.domain].url} target="_blank" className="px-3 py-1.5 text-xs font-mono text-accent hover:underline">
+                             {tunnels[d.config.domain].url}
+                           </a>
+                           <button onClick={() => toggleTunnel(d.config.domain)} className="px-2 border-l border-accent/20 text-accent hover:bg-accent hover:text-white transition-colors" title="Stop Tunnel">
+                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                           </button>
+                         </div>
+                       )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => toggleTunnel(d.config.domain)}
+                      className="p-2.5 rounded-lg text-text-muted cursor-pointer hover:text-accent hover:bg-accent/10 border border-transparent hover:border-accent/20 transition-all"
+                      title="Share Public Tunnel"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
+                  )}
                   <button
                     onClick={() => handleEdit(d)}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-accent bg-accent/10 border border-accent/20 hover:bg-accent hover:text-white cursor-pointer transition-all shadow-sm"
@@ -394,6 +467,8 @@ function App() {
               )}
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </div>

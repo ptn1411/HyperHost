@@ -1,4 +1,5 @@
 pub mod cert;
+pub mod cloudflare;
 pub mod db;
 pub mod dns;
 #[cfg(feature = "gui")]
@@ -20,11 +21,14 @@ pub fn init_state() -> anyhow::Result<AppState> {
     let nginx_exe = resolve_nginx_exe();
     let nginx = nginx::NginxManager::new(nginx_exe, paths.nginx_conf(), paths.nginx_dir());
 
+    let cloudflared = cloudflare::CloudflaredManager::new();
+
     Ok(AppState {
         paths,
         db,
         ca,
         nginx,
+        cloudflared,
     })
 }
 
@@ -50,6 +54,11 @@ pub fn run() {
             if let Err(e) = state.nginx.start() {
                 tracing::error!("Failed to auto-start Nginx: {}", e);
             }
+
+            crate::nginx::tail::start_tailing(
+                app.handle().clone(),
+                state.paths.nginx_logs().join("access.json"),
+            );
 
             // Create Tray Menu
             let show_i = MenuItem::with_id(app, "show", "Open HyperHost", true, None::<&str>)?;
@@ -117,6 +126,8 @@ pub fn run() {
             ipc::commands::nginx_start,
             ipc::commands::nginx_stop,
             ipc::commands::get_nginx_log,
+            ipc::commands::start_tunnel,
+            ipc::commands::stop_tunnel,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -152,4 +163,43 @@ pub fn resolve_nginx_exe() -> std::path::PathBuf {
 
     tracing::warn!("nginx not found in expected locations, falling back to 'nginx' in PATH");
     std::path::PathBuf::from("nginx.exe")
+}
+
+pub fn resolve_cloudflared_exe() -> std::path::PathBuf {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_default();
+
+    let dev_binaries = exe_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.join("binaries"));
+
+    let mut candidates: Vec<std::path::PathBuf> =
+        vec![exe_dir.join("cloudflared-x86_64-pc-windows-msvc.exe")];
+
+    if let Some(dev_dir) = dev_binaries {
+        candidates.push(dev_dir.join("cloudflared-x86_64-pc-windows-msvc.exe"));
+    }
+
+    // 👇 thêm vào đây
+    tracing::info!(
+        "resolve_cloudflared_exe: exe_dir={} candidates={:?}",
+        exe_dir.display(),
+        candidates
+            .iter()
+            .map(|p| format!("{} (exists={})", p.display(), p.exists()))
+            .collect::<Vec<_>>()
+    );
+
+    for candidate in &candidates {
+        if candidate.exists() {
+            tracing::info!("Found cloudflared at: {}", candidate.display());
+            return candidate.clone();
+        }
+    }
+
+    tracing::warn!("cloudflared not found, falling back to PATH");
+    std::path::PathBuf::from("cloudflared.exe")
 }

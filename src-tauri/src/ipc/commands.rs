@@ -221,6 +221,29 @@ pub async fn get_nginx_log(
     Ok(all_lines[start..].to_vec())
 }
 
+#[tauri::command]
+pub async fn start_tunnel(
+    domain: String,
+    state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    if let Ok(domains) = state.db.list_domains() {
+        if let Some(config) = domains.iter().find(|d| d.domain == domain) {
+            return state.cloudflared.start(app_handle, domain, config.upstream.clone()).map_err(|e| e.to_string());
+        }
+    }
+    Err("Domain not found in config".to_string())
+}
+
+#[tauri::command]
+pub async fn stop_tunnel(
+    domain: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    state.cloudflared.stop(&domain);
+    Ok(())
+}
+
 fn rebuild_nginx(state: &AppState) -> anyhow::Result<()> {
     let all = state.db.list_domains()?;
     let nginx_conf = crate::nginx::config::generate(

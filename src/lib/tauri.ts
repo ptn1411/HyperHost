@@ -40,4 +40,8 @@ export const api = {
   caStatus: () => invoke<CaStatus>("ca_status"),
   getNginxLog: (lines: number) =>
     invoke<string[]>("get_nginx_log", { lines }),
+  startTunnel: (domain: string) =>
+    invoke<void>("start_tunnel", { domain }),
+  stopTunnel: (domain: string) =>
+    invoke<void>("stop_tunnel", { domain }),
 };

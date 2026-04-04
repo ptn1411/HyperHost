@@ -8,4 +8,5 @@ pub struct AppState {
     pub db: Database,
     pub ca: LocalCA,
     pub nginx: NginxManager,
+    pub cloudflared: crate::cloudflare::CloudflaredManager,
 }

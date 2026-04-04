@@ -29,7 +29,12 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "targets": "nsis",
-    "externalBin": ["binaries/nginx", "binaries/mkcert", "binaries/dh", "binaries/cloudflared"],
+    "externalBin": [
+      "binaries/nginx",
+      "binaries/mkcert",
+      "binaries/hyh",
+      "binaries/cloudflared"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

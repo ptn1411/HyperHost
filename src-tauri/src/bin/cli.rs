@@ -5,10 +5,10 @@ use comfy_table::{
 
 #[derive(Parser)]
 #[command(
-    name = "dh",
-    version = "1.0.0",
-    about = "⚡ DevHost CLI — Local HTTPS domain manager for Windows",
-    long_about = "Manage local virtual domains with HTTPS certificates.\nAdd domains like myapp.test that proxy to your dev server with trusted SSL.\n\nUsage: dh add myapp.test http://127.0.0.1:3000"
+    name = "hyh",
+    version = "0.1.3",
+    about = "⚡ HyperHost CLI — Local HTTPS domain manager for Windows",
+    long_about = "Manage local virtual domains with HTTPS certificates.\nAdd domains like myapp.test that proxy to your dev server with trusted SSL.\n\nUsage: hyh add myapp.test http://127.0.0.1:3000"
 )]
 struct Cli {
     #[command(subcommand)]

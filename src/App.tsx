@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
-import { api, DomainStatus, CaStatus, NginxInfo } from "./lib/tauri";
-import { NginxEditorMode } from "./components/NginxEditorMode";
-import { UpdateDialog } from "./components/UpdateDialog";
-import { TrafficInspector } from "./components/TrafficInspector";
 import { listen } from "@tauri-apps/api/event";
+import { useEffect, useState } from "react";
+import { NginxEditorMode } from "./components/NginxEditorMode";
+import { TrafficInspector } from "./components/TrafficInspector";
+import { UpdateDialog } from "./components/UpdateDialog";
+import { api, CaStatus, DomainStatus, NginxInfo } from "./lib/tauri";
 
 function App() {
   const [domains, setDomains] = useState<DomainStatus[]>([]);
@@ -11,14 +11,22 @@ function App() {
   const [nginxInfo, setNginxInfo] = useState<NginxInfo | null>(null);
   const [domain, setDomain] = useState("");
   const [upstream, setUpstream] = useState("http://127.0.0.1:3000");
-  const [editorMode, setEditorMode] = useState<"hidden" | "add" | "edit">("hidden");
-  const [editingData, setEditingData] = useState<{domain: string, upstream: string, advancedConfig: string} | null>(null);
+  const [editorMode, setEditorMode] = useState<"hidden" | "add" | "edit">(
+    "hidden",
+  );
+  const [editingData, setEditingData] = useState<{
+    domain: string;
+    upstream: string;
+    advancedConfig: string;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [showLogs, setShowLogs] = useState(false);
   const [activeTab, setActiveTab] = useState<"domains" | "traffic">("domains");
-  const [tunnels, setTunnels] = useState<Record<string, {url: string, loading: boolean}>>({});
+  const [tunnels, setTunnels] = useState<
+    Record<string, { url: string; loading: boolean }>
+  >({});
 
   const refresh = async () => {
     try {
@@ -35,24 +43,35 @@ function App() {
     }
   };
 
-  useEffect(() => { 
-    refresh(); 
-    const unlisten = listen<{domain: string, url: string}>("tunnel_ready", (event) => {
-      setTunnels((prev) => ({
-        ...prev,
-        [event.payload.domain]: { url: event.payload.url, loading: false }
-      }));
-    });
+  useEffect(() => {
+    refresh();
+    const unlisten = listen<{ domain: string; url: string }>(
+      "tunnel_ready",
+      (event) => {
+        setTunnels((prev) => ({
+          ...prev,
+          [event.payload.domain]: { url: event.payload.url, loading: false },
+        }));
+      },
+    );
     return () => {
       unlisten.then((fn) => fn());
     };
   }, []);
 
-  const handleSaveDomain = async (parsedDomain: string, parsedUpstream: string, parsedAdvanced: string) => {
+  const handleSaveDomain = async (
+    parsedDomain: string,
+    parsedUpstream: string,
+    parsedAdvanced: string,
+  ) => {
     setLoading(true);
     setError(null);
     try {
-      await api.addDomain(parsedDomain.trim(), parsedUpstream.trim(), parsedAdvanced);
+      await api.addDomain(
+        parsedDomain.trim(),
+        parsedUpstream.trim(),
+        parsedAdvanced,
+      );
       setEditorMode("hidden");
       setDomain("");
       setUpstream("http://127.0.0.1:3000");
@@ -77,7 +96,7 @@ function App() {
       advancedConfig: d.config.advanced_config || "",
     });
     setEditorMode("edit");
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleRemove = async (d: string) => {
@@ -159,12 +178,24 @@ function App() {
           <div>
             <h1 className="text-3xl font-bold text-text flex items-center gap-3 tracking-tight font-mono">
               <span className="text-accent bg-accent/10 p-2 rounded-xl">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
               </span>
               HyperHost Manager
             </h1>
             <p className="text-text-muted mt-2 text-sm">
-              Local HTTPS domains for development • <span className="font-mono text-xs">v0.1.0</span>
+              Local HTTPS domains for development •{" "}
+              <span className="font-mono text-xs">v0.1.3</span>
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -175,14 +206,18 @@ function App() {
               className={`
                 flex items-center gap-2.5 px-5 py-2.5 rounded-lg text-sm font-semibold cursor-pointer
                 transition-all duration-200 border-2
-                ${nginxInfo?.running
-                  ? "bg-success/10 text-success border-success/20 hover:bg-success/20 hover:border-success/40"
-                  : "bg-surface-2 text-text-muted border-surface-3 hover:border-text-muted/50 hover:text-text"
+                ${
+                  nginxInfo?.running
+                    ? "bg-success/10 text-success border-success/20 hover:bg-success/20 hover:border-success/40"
+                    : "bg-surface-2 text-text-muted border-surface-3 hover:border-text-muted/50 hover:text-text"
                 }
-              `}
-            >
-              <span className={`w-2.5 h-2.5 rounded-full shadow-sm ${nginxInfo?.running ? "bg-success shadow-success/50 animate-pulse" : "bg-danger"}`} />
-              <span className="font-mono">{nginxInfo?.running ? "nginx: RUNNING" : "nginx: STOPPED"}</span>
+              `}>
+              <span
+                className={`w-2.5 h-2.5 rounded-full shadow-sm ${nginxInfo?.running ? "bg-success shadow-success/50 animate-pulse" : "bg-danger"}`}
+              />
+              <span className="font-mono">
+                {nginxInfo?.running ? "nginx: RUNNING" : "nginx: STOPPED"}
+              </span>
             </button>
 
             {/* CA Status */}
@@ -190,16 +225,37 @@ function App() {
               <button
                 onClick={handleInstallCa}
                 disabled={loading}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold cursor-pointer bg-warning/10 text-warning border-2 border-warning/20 hover:bg-warning/20 hover:border-warning/40 transition-all duration-200"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold cursor-pointer bg-warning/10 text-warning border-2 border-warning/20 hover:bg-warning/20 hover:border-warning/40 transition-all duration-200">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  />
+                </svg>
                 Install CA
               </button>
             )}
             {caStatus?.installed && (
               <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-surface-2 border border-surface-3 text-text-muted">
                 <span className="text-success">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
                 </span>
                 CA Trusted
               </div>
@@ -211,14 +267,12 @@ function App() {
         <div className="flex items-center gap-1 mb-8 p-1 bg-surface-2 rounded-xl border border-surface-3/50 w-fit">
           <button
             onClick={() => setActiveTab("domains")}
-            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "domains" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}
-          >
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "domains" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}>
             Tên Miền & Proxy
           </button>
           <button
             onClick={() => setActiveTab("traffic")}
-            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "traffic" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}
-          >
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "traffic" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}>
             Live Traffic
           </button>
         </div>
@@ -226,10 +280,34 @@ function App() {
         {/* Error Banner */}
         {error && (
           <div className="mb-8 p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm flex items-start gap-3 shadow-sm">
-            <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <svg
+              className="w-5 h-5 shrink-0 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
             <span className="flex-1 font-mono text-xs mt-0.5">{error}</span>
-            <button onClick={() => setError(null)} className="text-danger hover:text-danger/70 cursor-pointer p-1 rounded-md hover:bg-danger/20 transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            <button
+              onClick={() => setError(null)}
+              className="text-danger hover:text-danger/70 cursor-pointer p-1 rounded-md hover:bg-danger/20 transition-colors">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
             </button>
           </div>
         )}
@@ -238,237 +316,471 @@ function App() {
           <TrafficInspector />
         ) : (
           <>
-        {editorMode !== "hidden" ? (
-          <NginxEditorMode
-            isEditing={editorMode === "edit"}
-            initialDomain={editorMode === "edit" ? editingData?.domain : (editorMode === "add" ? domain : "")}
-            initialUpstream={editorMode === "edit" ? editingData?.upstream : (editorMode === "add" ? upstream : "http://127.0.0.1:3000")}
-            initialAdvancedConfig={editorMode === "edit" ? editingData?.advancedConfig : ""}
-            loading={loading}
-            onSave={handleSaveDomain}
-            onCancel={() => setEditorMode("hidden")}
-          />
-        ) : (
-          <form onSubmit={handleQuickAdd} className="mb-10 p-6 rounded-xl bg-surface-2 shadow-md border border-surface-3/30 transition-all duration-200">
-            <h2 className="text-lg font-semibold mb-5 text-text flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                Thêm Route Nhanh
-              </div>
-              <button
-                type="button"
-                onClick={() => setEditorMode("add")}
-                className="text-xs font-semibold px-3 py-1.5 rounded bg-surface-3 hover:bg-accent/20 hover:text-accent text-text-muted transition-colors flex items-center gap-1.5"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-                Chế độ Code Editor
-              </button>
-            </h2>
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <label className="block text-xs font-semibold tracking-wide text-text-muted mb-2 uppercase">Local Domain</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-3 text-text-muted">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
-                  </span>
-                  <input
-                    type="text"
-                    value={domain}
-                    onChange={(e) => setDomain(e.target.value)}
-                    placeholder="myapp.test"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-surface border border-surface-3 text-text font-mono text-sm placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
-                  />
+            {editorMode !== "hidden" ? (
+              <NginxEditorMode
+                isEditing={editorMode === "edit"}
+                initialDomain={
+                  editorMode === "edit"
+                    ? editingData?.domain
+                    : editorMode === "add"
+                      ? domain
+                      : ""
+                }
+                initialUpstream={
+                  editorMode === "edit"
+                    ? editingData?.upstream
+                    : editorMode === "add"
+                      ? upstream
+                      : "http://127.0.0.1:3000"
+                }
+                initialAdvancedConfig={
+                  editorMode === "edit" ? editingData?.advancedConfig : ""
+                }
+                loading={loading}
+                onSave={handleSaveDomain}
+                onCancel={() => setEditorMode("hidden")}
+              />
+            ) : (
+              <form
+                onSubmit={handleQuickAdd}
+                className="mb-10 p-6 rounded-xl bg-surface-2 shadow-md border border-surface-3/30 transition-all duration-200">
+                <h2 className="text-lg font-semibold mb-5 text-text flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    Thêm Route Nhanh
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditorMode("add")}
+                    className="text-xs font-semibold px-3 py-1.5 rounded bg-surface-3 hover:bg-accent/20 hover:text-accent text-text-muted transition-colors flex items-center gap-1.5">
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                      />
+                    </svg>
+                    Chế độ Code Editor
+                  </button>
+                </h2>
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold tracking-wide text-text-muted mb-2 uppercase">
+                      Local Domain
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-3 text-text-muted">
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                          />
+                        </svg>
+                      </span>
+                      <input
+                        type="text"
+                        value={domain}
+                        onChange={(e) => setDomain(e.target.value)}
+                        placeholder="myapp.test"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-surface border border-surface-3 text-text font-mono text-sm placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold tracking-wide text-text-muted mb-2 uppercase">
+                      Upstream Server
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-3 text-text-muted">
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+                          />
+                        </svg>
+                      </span>
+                      <input
+                        type="text"
+                        value={upstream}
+                        onChange={(e) => setUpstream(e.target.value)}
+                        placeholder="http://127.0.0.1:3000"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-surface border border-surface-3 text-text font-mono text-sm placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="submit"
+                      disabled={loading || !domain.trim()}
+                      className="w-full md:w-auto px-8 py-2.5 rounded-lg bg-accent text-white font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 active:scale-95 shadow-md shadow-accent/20">
+                      {loading ? "..." : "Tạo Nhanh"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex-1">
-                <label className="block text-xs font-semibold tracking-wide text-text-muted mb-2 uppercase">Upstream Server</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-3 text-text-muted">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
+              </form>
+            )}
+
+            {/* Domain List */}
+            <div className="space-y-4">
+              <div className="flex items-end justify-between mb-4 border-b border-surface-3/30 pb-3">
+                <h2 className="text-xl font-bold text-text flex items-center gap-2">
+                  Active Routes
+                  <span className="bg-surface-3 text-text text-xs px-2.5 py-0.5 rounded-full font-mono">
+                    {domains.length}
                   </span>
-                  <input
-                    type="text"
-                    value={upstream}
-                    onChange={(e) => setUpstream(e.target.value)}
-                    placeholder="http://127.0.0.1:3000"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-surface border border-surface-3 text-text font-mono text-sm placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
-                  />
-                </div>
-              </div>
-              <div className="flex items-end">
+                </h2>
                 <button
-                  type="submit"
-                  disabled={loading || !domain.trim()}
-                  className="w-full md:w-auto px-8 py-2.5 rounded-lg bg-accent text-white font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 active:scale-95 shadow-md shadow-accent/20"
-                >
-                  {loading ? "..." : "Tạo Nhanh"}
+                  onClick={handleShowLogs}
+                  className="text-sm font-medium text-text-muted hover:text-accent transition-colors cursor-pointer flex items-center gap-2">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  {showLogs ? "Hide Nginx Logs" : "View Nginx Logs"}
                 </button>
               </div>
-            </div>
-          </form>
-        )}
 
-        {/* Domain List */}
-        <div className="space-y-4">
-          <div className="flex items-end justify-between mb-4 border-b border-surface-3/30 pb-3">
-            <h2 className="text-xl font-bold text-text flex items-center gap-2">
-              Active Routes 
-              <span className="bg-surface-3 text-text text-xs px-2.5 py-0.5 rounded-full font-mono">{domains.length}</span>
-            </h2>
-            <button
-              onClick={handleShowLogs}
-              className="text-sm font-medium text-text-muted hover:text-accent transition-colors cursor-pointer flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              {showLogs ? "Hide Nginx Logs" : "View Nginx Logs"}
-            </button>
-          </div>
+              {domains.length === 0 && (
+                <div className="text-center py-20 bg-surface-2 border border-surface-3/30 rounded-xl border-dashed">
+                  <svg
+                    className="w-12 h-12 mx-auto mb-4 text-text-muted/30"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <p className="text-text-muted font-medium">
+                    No domains configured
+                  </p>
+                  <p className="text-text-muted/60 text-sm mt-1">
+                    Add your first local proxy route above.
+                  </p>
+                </div>
+              )}
 
-          {domains.length === 0 && (
-            <div className="text-center py-20 bg-surface-2 border border-surface-3/30 rounded-xl border-dashed">
-              <svg className="w-12 h-12 mx-auto mb-4 text-text-muted/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              <p className="text-text-muted font-medium">No domains configured</p>
-              <p className="text-text-muted/60 text-sm mt-1">Add your first local proxy route above.</p>
-            </div>
-          )}
-
-          {domains.map((d) => (
-            <div
-              key={d.config.domain}
-              className={`
+              {domains.map((d) => (
+                <div
+                  key={d.config.domain}
+                  className={`
                 group p-5 rounded-xl border transition-all duration-300
-                ${d.config.enabled
-                  ? "bg-surface-2 border-surface-3/50 hover:border-accent/40 shadow-sm hover:shadow-md hover:-translate-y-px cursor-default"
-                  : "bg-surface border-surface-3/20 opacity-70 grayscale-[30%] hover:opacity-100"
+                ${
+                  d.config.enabled
+                    ? "bg-surface-2 border-surface-3/50 hover:border-accent/40 shadow-sm hover:shadow-md hover:-translate-y-px cursor-default"
+                    : "bg-surface border-surface-3/20 opacity-70 grayscale-[30%] hover:opacity-100"
                 }
-              `}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-5">
-                  {/* Toggle */}
-                  <button
-                    onClick={() => handleToggle(d.config.domain)}
-                    className={`w-12 h-6 rounded-full relative cursor-pointer transition-all duration-300 shadow-inner ${
-                      d.config.enabled ? "bg-accent" : "bg-surface-3"
-                    }`}
-                  >
-                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${
-                      d.config.enabled ? "left-7" : "left-1"
-                    }`} />
-                  </button>
+              `}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-5">
+                      {/* Toggle */}
+                      <button
+                        onClick={() => handleToggle(d.config.domain)}
+                        className={`w-12 h-6 rounded-full relative cursor-pointer transition-all duration-300 shadow-inner ${
+                          d.config.enabled ? "bg-accent" : "bg-surface-3"
+                        }`}>
+                        <span
+                          className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${
+                            d.config.enabled ? "left-7" : "left-1"
+                          }`}
+                        />
+                      </button>
 
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <a
-                        href={`https://${d.config.domain}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-text font-bold text-lg hover:text-accent transition-colors flex items-center group/link font-sans"
-                      >
-                        {d.config.domain}
-                        <svg className="w-3.5 h-3.5 ml-1.5 opacity-0 -translate-x-2 group-hover/link:opacity-100 group-hover/link:translate-x-0 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                      </a>
-                      {/* Cert Badge */}
-                      <span className={`flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-md ${
-                        d.cert_valid
-                          ? "bg-success/15 text-success border border-success/20"
-                          : "bg-danger/15 text-danger border border-danger/20"
-                      }`}>
-                        {d.cert_valid ? (
-                          <><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg> Valid SSL</>
-                        ) : (
-                          <><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg> Invalid SSL</>
-                        )}
-                      </span>
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <a
+                            href={`https://${d.config.domain}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-text font-bold text-lg hover:text-accent transition-colors flex items-center group/link font-sans">
+                            {d.config.domain}
+                            <svg
+                              className="w-3.5 h-3.5 ml-1.5 opacity-0 -translate-x-2 group-hover/link:opacity-100 group-hover/link:translate-x-0 transition-all duration-200"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2.5}
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                              />
+                            </svg>
+                          </a>
+                          {/* Cert Badge */}
+                          <span
+                            className={`flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-md ${
+                              d.cert_valid
+                                ? "bg-success/15 text-success border border-success/20"
+                                : "bg-danger/15 text-danger border border-danger/20"
+                            }`}>
+                            {d.cert_valid ? (
+                              <>
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2.5}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>{" "}
+                                Valid SSL
+                              </>
+                            ) : (
+                              <>
+                                <svg
+                                  className="w-3 h-3"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2.5}
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>{" "}
+                                Invalid SSL
+                              </>
+                            )}
+                          </span>
+                        </div>
+                        <div className="inline-flex items-center text-sm text-text-muted mt-2 font-mono bg-surface px-2.5 py-1.5 rounded-md border border-surface-3/30">
+                          <svg
+                            className="w-3.5 h-3.5 mr-2 text-accent/70"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                            />
+                          </svg>
+                          {d.config.upstream}
+                        </div>
+                      </div>
                     </div>
-                    <div className="inline-flex items-center text-sm text-text-muted mt-2 font-mono bg-surface px-2.5 py-1.5 rounded-md border border-surface-3/30">
-                      <svg className="w-3.5 h-3.5 mr-2 text-accent/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-                      {d.config.upstream}
+
+                    <div className="flex items-center gap-2 opacity-100 transition-opacity duration-200">
+                      {tunnels[d.config.domain] ? (
+                        <div className="flex flex-col gap-1.5 mr-2">
+                          {tunnels[d.config.domain].loading ? (
+                            <span className="text-xs text-accent animate-pulse">
+                              Starting Tunnel...
+                            </span>
+                          ) : (
+                            <>
+                              <div className="flex items-center bg-accent/10 border border-accent/20 rounded-lg overflow-hidden">
+                                <a
+                                  href={tunnels[d.config.domain].url}
+                                  target="_blank"
+                                  className="px-3 py-1.5 text-xs font-mono text-accent hover:underline">
+                                  {tunnels[d.config.domain].url}
+                                </a>
+                                <button
+                                  onClick={() =>
+                                    navigator.clipboard.writeText(
+                                      tunnels[d.config.domain].url,
+                                    )
+                                  }
+                                  className="px-2 border-l border-accent/20 text-accent hover:bg-accent/20 transition-colors"
+                                  title="Copy URL">
+                                  <svg
+                                    className="w-3.5 h-3.5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => toggleTunnel(d.config.domain)}
+                                  className="px-2 border-l border-accent/20 text-accent hover:bg-accent hover:text-white transition-colors"
+                                  title="Stop Tunnel">
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M6 18L18 6M6 6l12 12"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                              <span className="text-[10px] text-text-muted/60 italic">
+                                ⚠ Nếu không mở được, hãy đổi DNS sang 1.1.1.1
+                                hoặc bật Secure DNS
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => toggleTunnel(d.config.domain)}
+                          className="p-2.5 rounded-lg text-text-muted cursor-pointer hover:text-accent hover:bg-accent/10 border border-transparent hover:border-accent/20 transition-all"
+                          title="Share Public Tunnel">
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleEdit(d)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-accent bg-accent/10 border border-accent/20 hover:bg-accent hover:text-white cursor-pointer transition-all shadow-sm"
+                        title="Edit Configuration">
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                        Sửa
+                      </button>
+                      <button
+                        onClick={() =>
+                          navigator.clipboard.writeText(
+                            `https://${d.config.domain}`,
+                          )
+                        }
+                        className="p-2.5 rounded-lg text-text-muted cursor-pointer hover:text-accent hover:bg-accent/10 border border-transparent hover:border-accent/20 transition-all"
+                        title="Copy URL">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleRemove(d.config.domain)}
+                        className="p-2.5 rounded-lg text-text-muted cursor-pointer hover:text-danger hover:bg-danger/10 border border-transparent hover:border-danger/20 transition-all"
+                        title="Remove Route">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 </div>
+              ))}
+            </div>
 
-                <div className="flex items-center gap-2 opacity-100 transition-opacity duration-200">
-                  {tunnels[d.config.domain] ? (
-                    <div className="flex items-center gap-2 mr-2">
-                       {tunnels[d.config.domain].loading ? (
-                         <span className="text-xs text-accent animate-pulse">Starting Tunnel...</span>
-                       ) : (
-                         <div className="flex items-center bg-accent/10 border border-accent/20 rounded-lg overflow-hidden">
-                           <a href={tunnels[d.config.domain].url} target="_blank" className="px-3 py-1.5 text-xs font-mono text-accent hover:underline">
-                             {tunnels[d.config.domain].url}
-                           </a>
-                           <button onClick={() => toggleTunnel(d.config.domain)} className="px-2 border-l border-accent/20 text-accent hover:bg-accent hover:text-white transition-colors" title="Stop Tunnel">
-                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                           </button>
-                         </div>
-                       )}
-                    </div>
+            {/* Log Viewer */}
+            {showLogs && (
+              <div className="mt-8 p-5 rounded-xl bg-[#0a0f1d] border border-surface-3 shadow-inner">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-text flex items-center gap-2">
+                    <svg
+                      className="w-4 h-4 text-accent"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    nginx error.log
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs font-mono text-text-muted">
+                    <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+                    Live Tail
+                  </div>
+                </div>
+                <div className="bg-black/50 rounded-lg p-4 h-64 overflow-y-auto font-mono text-[11px] text-gray-300 leading-normal border border-white/5">
+                  {logs.length === 0 ? (
+                    <p className="text-center py-10 text-text-muted/40 italic">
+                      Nothing interesting is happening right now.
+                    </p>
                   ) : (
-                    <button
-                      onClick={() => toggleTunnel(d.config.domain)}
-                      className="p-2.5 rounded-lg text-text-muted cursor-pointer hover:text-accent hover:bg-accent/10 border border-transparent hover:border-accent/20 transition-all"
-                      title="Share Public Tunnel"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleEdit(d)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-accent bg-accent/10 border border-accent/20 hover:bg-accent hover:text-white cursor-pointer transition-all shadow-sm"
-                    title="Edit Configuration"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                    Sửa
-                  </button>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(`https://${d.config.domain}`)}
-                    className="p-2.5 rounded-lg text-text-muted cursor-pointer hover:text-accent hover:bg-accent/10 border border-transparent hover:border-accent/20 transition-all"
-                    title="Copy URL"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                  </button>
-                  <button
-                    onClick={() => handleRemove(d.config.domain)}
-                    className="p-2.5 rounded-lg text-text-muted cursor-pointer hover:text-danger hover:bg-danger/10 border border-transparent hover:border-danger/20 transition-all"
-                    title="Remove Route"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Log Viewer */}
-        {showLogs && (
-          <div className="mt-8 p-5 rounded-xl bg-[#0a0f1d] border border-surface-3 shadow-inner">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-text flex items-center gap-2">
-                <svg className="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                nginx error.log
-              </h3>
-              <div className="flex items-center gap-2 text-xs font-mono text-text-muted">
-                <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-                Live Tail
-              </div>
-            </div>
-            <div className="bg-black/50 rounded-lg p-4 h-64 overflow-y-auto font-mono text-[11px] text-gray-300 leading-normal border border-white/5">
-              {logs.length === 0 ? (
-                <p className="text-center py-10 text-text-muted/40 italic">Nothing interesting is happening right now.</p>
-              ) : (
-                <div className="space-y-1">
-                  {logs.map((line, i) => (
-                    <div key={i} className={`py-0.5 px-2 rounded ${line.toLowerCase().includes('error') ? 'text-danger bg-danger/10' : 'hover:bg-white/5'}`}>
-                      {line}
+                    <div className="space-y-1">
+                      {logs.map((line, i) => (
+                        <div
+                          key={i}
+                          className={`py-0.5 px-2 rounded ${line.toLowerCase().includes("error") ? "text-danger bg-danger/10" : "hover:bg-white/5"}`}>
+                          {line}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-        </>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -5,21 +5,22 @@ Write-Host "🔧 Building dh..." -ForegroundColor Cyan
 
 # Build CLI binary (release, no GUI features)
 Push-Location "$PSScriptRoot\src-tauri"
-cargo build --release --no-default-features --bin dh
+cargo build --release --no-default-features --bin hyh
 Pop-Location
 
 # Copy CLI to binaries with Tauri sidecar naming convention
-$source = "$PSScriptRoot\src-tauri\target\release\dh.exe"
-$dest = "$PSScriptRoot\src-tauri\binaries\dh-x86_64-pc-windows-msvc.exe"
+$source = "$PSScriptRoot\src-tauri\target\release\hyh.exe"
+$dest = "$PSScriptRoot\src-tauri\binaries\hyh-x86_64-pc-windows-msvc.exe"
 
 Copy-Item $source -Destination $dest -Force
-Write-Host "✅ dh copied to binaries/" -ForegroundColor Green
+Write-Host "✅ hyh copied to binaries/" -ForegroundColor Green
 
 # Verify all sidecars exist
 $sidecars = @(
     "nginx-x86_64-pc-windows-msvc.exe",
     "mkcert-x86_64-pc-windows-msvc.exe",
-    "dh-x86_64-pc-windows-msvc.exe"
+    "hyh-x86_64-pc-windows-msvc.exe",
+    "cloudflared-x86_64-pc-windows-msvc.exe"
 )
 
 Write-Host "`n📦 Sidecar binaries:" -ForegroundColor Cyan
@@ -28,7 +29,8 @@ foreach ($s in $sidecars) {
     if (Test-Path $path) {
         $size = [math]::Round((Get-Item $path).Length / 1MB, 1)
         Write-Host "  ✓ $s (${size}MB)" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "  ✗ $s MISSING" -ForegroundColor Red
     }
 }

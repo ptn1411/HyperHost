@@ -1,4 +1,5 @@
 pub mod cert;
+#[cfg(feature = "gui")]
 pub mod cloudflare;
 pub mod db;
 pub mod dns;
@@ -21,14 +22,13 @@ pub fn init_state() -> anyhow::Result<AppState> {
     let nginx_exe = resolve_nginx_exe();
     let nginx = nginx::NginxManager::new(nginx_exe, paths.nginx_conf(), paths.nginx_dir());
 
-    let cloudflared = cloudflare::CloudflaredManager::new();
-
     Ok(AppState {
         paths,
         db,
         ca,
         nginx,
-        cloudflared,
+        #[cfg(feature = "gui")]
+        cloudflared: cloudflare::CloudflaredManager::new(),
     })
 }
 

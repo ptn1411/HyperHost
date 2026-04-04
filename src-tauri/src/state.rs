@@ -8,5 +8,6 @@ pub struct AppState {
     pub db: Database,
     pub ca: LocalCA,
     pub nginx: NginxManager,
+    #[cfg(feature = "gui")]
     pub cloudflared: crate::cloudflare::CloudflaredManager,
 }

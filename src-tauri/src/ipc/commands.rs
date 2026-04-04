@@ -1,5 +1,5 @@
-use crate::state::AppState;
 use crate::db::{DomainConfig, DomainStatus};
+use crate::state::AppState;
 
 #[derive(Debug, serde::Serialize)]
 pub struct CaStatus {
@@ -42,14 +42,23 @@ pub async fn add_domain(
             (cert, key)
         }
         Err(rcgen_err) => {
-            tracing::warn!("rcgen failed for {}: {}, trying mkcert fallback...", &domain, rcgen_err);
+            tracing::warn!(
+                "rcgen failed for {}: {}, trying mkcert fallback...",
+                &domain,
+                rcgen_err
+            );
 
             // Fallback to mkcert binary
-            let mkcert = crate::cert::mkcert::MkcertRunner::find()
-                .ok_or_else(|| format!("rcgen failed ({}) and mkcert binary not found", rcgen_err))?;
+            let mkcert = crate::cert::mkcert::MkcertRunner::find().ok_or_else(|| {
+                format!("rcgen failed ({}) and mkcert binary not found", rcgen_err)
+            })?;
 
-            mkcert.issue_for_domain(&domain, &cert_dir)
-                .map_err(|e| format!("Both rcgen and mkcert failed. rcgen: {}. mkcert: {}", rcgen_err, e))?;
+            mkcert.issue_for_domain(&domain, &cert_dir).map_err(|e| {
+                format!(
+                    "Both rcgen and mkcert failed. rcgen: {}. mkcert: {}",
+                    rcgen_err, e
+                )
+            })?;
 
             // Read back the generated files
             let cert = std::fs::read_to_string(cert_dir.join(format!("{}.crt", &domain)))
@@ -94,9 +103,7 @@ pub async fn add_domain(
 }
 
 #[tauri::command]
-pub async fn list_domains(
-    state: tauri::State<'_, AppState>,
-) -> Result<Vec<DomainStatus>, String> {
+pub async fn list_domains(state: tauri::State<'_, AppState>) -> Result<Vec<DomainStatus>, String> {
     let domains = state.db.list_domains().map_err(|e| e.to_string())?;
     let result = domains
         .into_iter()

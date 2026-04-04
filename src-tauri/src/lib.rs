@@ -20,7 +20,12 @@ pub fn init_state() -> anyhow::Result<AppState> {
     let nginx_exe = resolve_nginx_exe();
     let nginx = nginx::NginxManager::new(nginx_exe, paths.nginx_conf(), paths.nginx_dir());
 
-    Ok(AppState { paths, db, ca, nginx })
+    Ok(AppState {
+        paths,
+        db,
+        ca,
+        nginx,
+    })
 }
 
 /// Launch the Tauri GUI application.
@@ -37,9 +42,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(app_state)
         .setup(|app| {
-            use tauri::Manager;
             use tauri::menu::{Menu, MenuItem};
             use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+            use tauri::Manager;
 
             let state = app.state::<AppState>();
             if let Err(e) = state.nginx.start() {

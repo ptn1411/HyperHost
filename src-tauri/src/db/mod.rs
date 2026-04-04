@@ -44,7 +44,7 @@ impl Database {
                 advanced_config TEXT
             );",
         )?;
-        
+
         // Auto-migrate schema for existing databases
         let _ = conn.execute("ALTER TABLE domains ADD COLUMN advanced_config TEXT", []);
 
@@ -54,7 +54,12 @@ impl Database {
         })
     }
 
-    pub fn upsert_domain(&self, cfg: &DomainConfig, cert_pem: &str, key_pem: &str) -> anyhow::Result<()> {
+    pub fn upsert_domain(
+        &self,
+        cfg: &DomainConfig,
+        cert_pem: &str,
+        key_pem: &str,
+    ) -> anyhow::Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "INSERT INTO domains (domain, upstream, enabled, cert_pem, key_pem, cert_expiry, advanced_config)

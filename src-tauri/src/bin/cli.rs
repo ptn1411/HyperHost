@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
-use comfy_table::{Table, presets::UTF8_FULL, modifiers::UTF8_ROUND_CORNERS, Color, Attribute, Cell};
+use comfy_table::{
+    modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Attribute, Cell, Color, Table,
+};
 
 #[derive(Parser)]
 #[command(
@@ -203,7 +205,9 @@ fn cmd_list(state: &devhost_lib::state::AppState) -> anyhow::Result<()> {
         .apply_modifier(UTF8_ROUND_CORNERS)
         .set_header(vec![
             Cell::new("Status").fg(Color::Cyan),
-            Cell::new("Domain").fg(Color::Cyan).add_attribute(Attribute::Bold),
+            Cell::new("Domain")
+                .fg(Color::Cyan)
+                .add_attribute(Attribute::Bold),
             Cell::new("Upstream").fg(Color::Cyan),
             Cell::new("Cert").fg(Color::Cyan),
         ]);
@@ -219,7 +223,9 @@ fn cmd_list(state: &devhost_lib::state::AppState) -> anyhow::Result<()> {
 
         table.add_row(vec![
             Cell::new(status),
-            Cell::new(&d.domain).fg(Color::White).add_attribute(Attribute::Bold),
+            Cell::new(&d.domain)
+                .fg(Color::White)
+                .add_attribute(Attribute::Bold),
             Cell::new(&d.upstream).fg(Color::DarkGrey),
             if cert_ok {
                 Cell::new(cert_label).fg(Color::Green)
@@ -240,7 +246,11 @@ fn cmd_toggle(state: &devhost_lib::state::AppState, domain: &str) -> anyhow::Res
     devhost_lib::dns::hosts::sync_hosts(&active)?;
     rebuild_nginx(state)?;
 
-    let icon = if new_state { "🟢 enabled" } else { "⚫ disabled" };
+    let icon = if new_state {
+        "🟢 enabled"
+    } else {
+        "⚫ disabled"
+    };
     println!("✅ {} → {}", domain, icon);
     Ok(())
 }
@@ -265,7 +275,11 @@ fn cmd_nginx(state: &devhost_lib::state::AppState, action: NginxAction) -> anyho
             let running = state.nginx.is_running();
             println!(
                 "nginx: {}",
-                if running { "🟢 running" } else { "⚫ stopped" }
+                if running {
+                    "🟢 running"
+                } else {
+                    "⚫ stopped"
+                }
             );
         }
         NginxAction::Logs { lines } => {

@@ -24,14 +24,18 @@ impl MkcertRunner {
         for candidate in &candidates {
             if candidate.exists() {
                 tracing::info!("Found mkcert at: {}", candidate.display());
-                return Some(Self { exe: candidate.clone() });
+                return Some(Self {
+                    exe: candidate.clone(),
+                });
             }
         }
 
         // Try PATH
         if Command::new("mkcert").arg("-version").output().is_ok() {
             tracing::info!("Found mkcert in PATH");
-            return Some(Self { exe: PathBuf::from("mkcert") });
+            return Some(Self {
+                exe: PathBuf::from("mkcert"),
+            });
         }
 
         tracing::warn!("mkcert binary not found");
@@ -41,9 +45,7 @@ impl MkcertRunner {
     /// Install the mkcert root CA into system and browser trust stores.
     /// This handles Firefox NSS store automatically.
     pub fn install_ca(&self) -> anyhow::Result<()> {
-        let output = Command::new(&self.exe)
-            .arg("-install")
-            .output()?;
+        let output = Command::new(&self.exe).arg("-install").output()?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -87,8 +89,10 @@ impl MkcertRunner {
 
         let output = Command::new(&self.exe)
             .args([
-                "-cert-file", cert_path.to_str().unwrap(),
-                "-key-file", key_path.to_str().unwrap(),
+                "-cert-file",
+                cert_path.to_str().unwrap(),
+                "-key-file",
+                key_path.to_str().unwrap(),
                 domain,
                 &format!("*.{}", domain),
             ])
@@ -99,7 +103,11 @@ impl MkcertRunner {
             anyhow::bail!("mkcert cert generation failed for {}: {}", domain, stderr);
         }
 
-        tracing::info!("mkcert issued cert for {} → {}", domain, cert_path.display());
+        tracing::info!(
+            "mkcert issued cert for {} → {}",
+            domain,
+            cert_path.display()
+        );
         Ok((cert_path, key_path))
     }
 }

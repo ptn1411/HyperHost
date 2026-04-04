@@ -46,7 +46,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVBREY1QUIxQUQyOEJCQgpSV1M3aTlJYXEvV3RCYnRnWXNMK0hWcFRBWSt2d1puYW9aWk50NC9FNmh3VldCUUJmbTBaNHZxbAo=",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY2NzBCNTk1QTU0NkVEQUMKUldTczdVYWxsYlZ3OWtHQkZXelJQZ2NEUmF0UkR0aDYyWEhpRVJ0Ty9tekYzWHFLOGV0WlBvNXEK",
       "endpoints": [
         "https://github.com/ptn1411/HyperHost/releases/latest/download/latest.json"
       ]

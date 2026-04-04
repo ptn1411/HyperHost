@@ -35,7 +35,11 @@ http {{
 
         let adv = d.advanced_config.as_deref().unwrap_or("").trim();
 
-        if adv.starts_with("server {") || adv.starts_with("server\n{") || adv.starts_with("server\r\n{") || adv.starts_with("server ") {
+        if adv.starts_with("server {")
+            || adv.starts_with("server\n{")
+            || adv.starts_with("server\r\n{")
+            || adv.starts_with("server ")
+        {
             let replaced = adv
                 .replace("$DOMAIN", &d.domain)
                 .replace("$CERT_PATH", &cert)

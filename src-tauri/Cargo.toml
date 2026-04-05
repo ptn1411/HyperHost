@@ -1,6 +1,6 @@
 [package]
 name = "devhost"
-version = "0.1.3"
+version = "0.1.7"
 description = "Local Virtual Domain Manager for Windows"
 authors = ["NAM"]
 edition = "2021"

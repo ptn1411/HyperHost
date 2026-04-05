@@ -215,7 +215,7 @@ function App() {
             </h1>
             <p className="text-text-muted mt-2 text-sm">
               Local HTTPS domains for development •{" "}
-              <span className="font-mono text-xs">v0.1.3</span>
+              <span className="font-mono text-xs">v0.1.7</span>
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -810,25 +810,36 @@ function App() {
           <div className="bg-surface-2 border border-surface-3 rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
             <div className="flex items-center gap-3 mb-4">
               <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-danger/15 text-danger">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
                 </svg>
               </span>
               <h3 className="text-lg font-bold text-text">Xác nhận xóa</h3>
             </div>
-            <p className="text-sm text-text-muted mb-1">Bạn có chắc muốn xóa domain này?</p>
-            <p className="text-sm font-mono font-semibold text-text bg-surface px-3 py-2 rounded-lg border border-surface-3/50 mb-6">{deleteConfirm}</p>
+            <p className="text-sm text-text-muted mb-1">
+              Bạn có chắc muốn xóa domain này?
+            </p>
+            <p className="text-sm font-mono font-semibold text-text bg-surface px-3 py-2 rounded-lg border border-surface-3/50 mb-6">
+              {deleteConfirm}
+            </p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="px-5 py-2.5 rounded-lg text-sm font-semibold text-text-muted bg-surface-3/50 hover:bg-surface-3 transition-colors cursor-pointer"
-              >
+                className="px-5 py-2.5 rounded-lg text-sm font-semibold text-text-muted bg-surface-3/50 hover:bg-surface-3 transition-colors cursor-pointer">
                 Hủy
               </button>
               <button
                 onClick={confirmRemove}
-                className="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-danger hover:bg-red-600 transition-colors cursor-pointer shadow-md shadow-danger/20 active:scale-95"
-              >
+                className="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-danger hover:bg-red-600 transition-colors cursor-pointer shadow-md shadow-danger/20 active:scale-95">
                 Xóa domain
               </button>
             </div>

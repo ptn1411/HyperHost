@@ -27,6 +27,7 @@ function App() {
   const [tunnels, setTunnels] = useState<
     Record<string, { url: string; loading: boolean }>
   >({});
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const refresh = async () => {
     try {
@@ -67,12 +68,24 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      await api.addDomain(
-        parsedDomain.trim(),
-        parsedUpstream.trim(),
-        parsedAdvanced,
-      );
+      if (editorMode === "edit" && editingData) {
+        // Edit mode: pass old domain name for proper rename handling
+        await api.editDomain(
+          editingData.domain,
+          parsedDomain.trim(),
+          parsedUpstream.trim(),
+          parsedAdvanced,
+        );
+      } else {
+        // Add mode
+        await api.addDomain(
+          parsedDomain.trim(),
+          parsedUpstream.trim(),
+          parsedAdvanced,
+        );
+      }
       setEditorMode("hidden");
+      setEditingData(null);
       setDomain("");
       setUpstream("http://127.0.0.1:3000");
       await refresh();
@@ -99,12 +112,19 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleRemove = async (d: string) => {
+  const handleRemove = (d: string) => {
+    setDeleteConfirm(d);
+  };
+
+  const confirmRemove = async () => {
+    if (!deleteConfirm) return;
     try {
-      await api.removeDomain(d);
+      await api.removeDomain(deleteConfirm);
       await refresh();
     } catch (err: any) {
       setError(String(err));
+    } finally {
+      setDeleteConfirm(null);
     }
   };
 
@@ -783,6 +803,38 @@ function App() {
           </>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-surface-2 border border-surface-3 rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-danger/15 text-danger">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </span>
+              <h3 className="text-lg font-bold text-text">Xác nhận xóa</h3>
+            </div>
+            <p className="text-sm text-text-muted mb-1">Bạn có chắc muốn xóa domain này?</p>
+            <p className="text-sm font-mono font-semibold text-text bg-surface px-3 py-2 rounded-lg border border-surface-3/50 mb-6">{deleteConfirm}</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-5 py-2.5 rounded-lg text-sm font-semibold text-text-muted bg-surface-3/50 hover:bg-surface-3 transition-colors cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmRemove}
+                className="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-danger hover:bg-red-600 transition-colors cursor-pointer shadow-md shadow-danger/20 active:scale-95"
+              >
+                Xóa domain
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

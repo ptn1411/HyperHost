@@ -103,6 +103,87 @@ pub async fn add_domain(
 }
 
 #[tauri::command]
+pub async fn edit_domain(
+    old_domain: String,
+    domain: String,
+    upstream: String,
+    advanced_config: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<DomainStatus, String> {
+    // Validate new values
+    if !domain.ends_with(".test") && !domain.ends_with(".local") {
+        return Err("Domain must end with .test or .local".into());
+    }
+    if !upstream.starts_with("http://") && !upstream.starts_with("https://") {
+        return Err("Upstream must start with http:// or https://".into());
+    }
+
+    // If domain name changed, remove the old one first
+    if old_domain != domain {
+        state.db.remove_domain(&old_domain).map_err(|e| e.to_string())?;
+        // Remove old cert files
+        let cert_dir = state.paths.cert_dir();
+        let _ = std::fs::remove_file(cert_dir.join(format!("{}.crt", &old_domain)));
+        let _ = std::fs::remove_file(cert_dir.join(format!("{}.key", &old_domain)));
+    }
+
+    // Issue cert for the (possibly new) domain
+    let cert_dir = state.paths.cert_dir();
+    std::fs::create_dir_all(&cert_dir).map_err(|e| e.to_string())?;
+
+    let (cert_pem, key_pem) = match state.ca.issue_for_domain(&domain) {
+        Ok((cert, key)) => {
+            tracing::info!("rcgen: cert issued for {}", &domain);
+            std::fs::write(cert_dir.join(format!("{}.crt", &domain)), &cert)
+                .map_err(|e| e.to_string())?;
+            std::fs::write(cert_dir.join(format!("{}.key", &domain)), &key)
+                .map_err(|e| e.to_string())?;
+            (cert, key)
+        }
+        Err(rcgen_err) => {
+            tracing::warn!("rcgen failed for {}: {}, trying mkcert fallback...", &domain, rcgen_err);
+            let mkcert = crate::cert::mkcert::MkcertRunner::find().ok_or_else(|| {
+                format!("rcgen failed ({}) and mkcert binary not found", rcgen_err)
+            })?;
+            mkcert.issue_for_domain(&domain, &cert_dir).map_err(|e| {
+                format!("Both rcgen and mkcert failed. rcgen: {}. mkcert: {}", rcgen_err, e)
+            })?;
+            let cert = std::fs::read_to_string(cert_dir.join(format!("{}.crt", &domain)))
+                .map_err(|e| e.to_string())?;
+            let key = std::fs::read_to_string(cert_dir.join(format!("{}.key", &domain)))
+                .map_err(|e| e.to_string())?;
+            (cert, key)
+        }
+    };
+
+    let expiry = chrono::Utc::now()
+        .checked_add_signed(chrono::Duration::days(730))
+        .map(|d| d.to_rfc3339());
+
+    let cfg = DomainConfig {
+        id: None,
+        domain: domain.clone(),
+        upstream,
+        enabled: true,
+        cert_expiry: expiry.clone(),
+        created_at: None,
+        advanced_config,
+    };
+    state.db.upsert_domain(&cfg, &cert_pem, &key_pem).map_err(|e| e.to_string())?;
+
+    // Sync hosts & rebuild nginx
+    let active = state.db.list_enabled_domains().map_err(|e| e.to_string())?;
+    crate::dns::hosts::sync_hosts(&active).map_err(|e| e.to_string())?;
+    rebuild_nginx(&state).map_err(|e| e.to_string())?;
+
+    Ok(DomainStatus {
+        config: cfg,
+        cert_valid: true,
+        cert_expiry: expiry,
+    })
+}
+
+#[tauri::command]
 pub async fn list_domains(state: tauri::State<'_, AppState>) -> Result<Vec<DomainStatus>, String> {
     let domains = state.db.list_domains().map_err(|e| e.to_string())?;
     let result = domains

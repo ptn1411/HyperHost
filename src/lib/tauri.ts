@@ -29,6 +29,8 @@ export const api = {
   listDomains: () => invoke<DomainStatus[]>("list_domains"),
   addDomain: (domain: string, upstream: string, advancedConfig?: string) =>
     invoke<DomainStatus>("add_domain", { domain, upstream, advancedConfig }),
+  editDomain: (oldDomain: string, domain: string, upstream: string, advancedConfig?: string) =>
+    invoke<DomainStatus>("edit_domain", { oldDomain, domain, upstream, advancedConfig }),
   removeDomain: (domain: string) =>
     invoke<void>("remove_domain", { domain }),
   toggleDomain: (domain: string) =>

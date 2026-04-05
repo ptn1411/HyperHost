@@ -117,6 +117,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             ipc::commands::add_domain,
+            ipc::commands::edit_domain,
             ipc::commands::list_domains,
             ipc::commands::remove_domain,
             ipc::commands::toggle_domain,

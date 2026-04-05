@@ -22,9 +22,12 @@ impl NginxManager {
     pub fn start(&self) -> anyhow::Result<()> {
         let mut proc = self.process.lock().unwrap();
         if proc.is_some() {
-            tracing::warn!("nginx already running");
+            tracing::warn!("nginx already running (in-memory handle exists)");
             return Ok(());
         }
+
+        // Kill any stale nginx from previous DevHost runs
+        self.kill_stale_processes();
 
         // Ensure required Nginx directories exist
         std::fs::create_dir_all(self.prefix.join("logs"))?;
@@ -38,7 +41,7 @@ impl NginxManager {
             .spawn()?;
 
         *proc = Some(child);
-        tracing::info!("nginx started");
+        tracing::info!("nginx started (pid={})", proc.as_ref().unwrap().id());
         Ok(())
     }
 
@@ -62,9 +65,27 @@ impl NginxManager {
     pub fn stop(&self) -> anyhow::Result<()> {
         let prefix_str = self.prefix.to_str().unwrap().replace('\\', "/");
 
+        // Graceful quit
         let _ = Command::new(&self.exe)
             .args(["-p", &prefix_str, "-s", "quit"])
             .status();
+
+        // Give it a moment to shut down
+        std::thread::sleep(std::time::Duration::from_millis(300));
+
+        // If PID file still exists, the graceful quit failed — force kill
+        if let Some(pid) = self.read_pid_file() {
+            if Self::is_pid_alive(pid) {
+                tracing::warn!("nginx did not quit gracefully, force killing pid={}", pid);
+                let _ = Command::new("taskkill")
+                    .args(["/F", "/T", "/PID", &pid.to_string()])
+                    .output();
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+        }
+
+        // Clean up PID file
+        let _ = std::fs::remove_file(self.pid_file());
 
         *self.process.lock().unwrap() = None;
         tracing::info!("nginx stopped");
@@ -72,23 +93,29 @@ impl NginxManager {
     }
 
     pub fn is_running(&self) -> bool {
+        // Check in-memory child process first
         let mut proc = self.process.lock().unwrap();
         if let Some(mut child) = proc.take() {
             match child.try_wait() {
                 Ok(Some(_)) => {
-                    false // exited
+                    return false; // exited
                 }
                 Ok(None) => {
                     *proc = Some(child);
-                    true // still running
+                    return true; // still running
                 }
                 Err(_) => {
-                    false // error checking, assume dead
+                    return false;
                 }
             }
-        } else {
-            false
         }
+
+        // Fallback: check PID file (covers processes from previous DevHost runs)
+        if let Some(pid) = self.read_pid_file() {
+            return Self::is_pid_alive(pid);
+        }
+
+        false
     }
 
     /// Test the current config for syntax errors.
@@ -106,6 +133,64 @@ impl NginxManager {
         } else {
             anyhow::bail!("nginx config test failed:\n{}", stderr)
         }
+    }
+
+    // ── Private helpers ──
+
+    fn pid_file(&self) -> PathBuf {
+        self.prefix.join("nginx.pid")
+    }
+
+    fn read_pid_file(&self) -> Option<u32> {
+        std::fs::read_to_string(self.pid_file())
+            .ok()
+            .and_then(|s| s.trim().parse::<u32>().ok())
+    }
+
+    /// Kill stale nginx processes from previous DevHost runs.
+    /// Only targets OUR nginx instance (by prefix), not other nginx on the system.
+    fn kill_stale_processes(&self) {
+        let prefix_str = self.prefix.to_str().unwrap().replace('\\', "/");
+
+        // 1. Try graceful stop via nginx signal (targets our prefix only)
+        let quit_result = Command::new(&self.exe)
+            .args(["-p", &prefix_str, "-s", "quit"])
+            .output();
+
+        if let Ok(output) = &quit_result {
+            if output.status.success() {
+                tracing::info!("Sent quit signal to stale nginx");
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+        }
+
+        // 2. If PID file still exists, force kill that specific PID
+        if let Some(pid) = self.read_pid_file() {
+            if Self::is_pid_alive(pid) {
+                tracing::warn!("Force killing stale nginx pid={}", pid);
+                // /T flag kills the entire process tree (master + workers)
+                let _ = Command::new("taskkill")
+                    .args(["/F", "/T", "/PID", &pid.to_string()])
+                    .output();
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+        }
+
+        // 3. Clean up stale PID file
+        let _ = std::fs::remove_file(self.pid_file());
+    }
+
+    /// Check if a process with the given PID is still alive (Windows).
+    fn is_pid_alive(pid: u32) -> bool {
+        Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {}", pid), "/NH"])
+            .output()
+            .map(|out| {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                // tasklist prints "INFO: No tasks..." when PID doesn't exist
+                !stdout.contains("No tasks") && stdout.contains(&pid.to_string())
+            })
+            .unwrap_or(false)
     }
 }
 

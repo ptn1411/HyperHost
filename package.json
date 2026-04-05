@@ -3,6 +3,8 @@
   "private": true,
   "version": "0.1.7",
   "type": "module",
+  "author": "ptn1411",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

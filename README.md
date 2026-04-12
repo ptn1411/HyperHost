@@ -1,58 +1,96 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/ptn1411/HyperHost/refs/heads/main/src-tauri/icons/icon.png" width="100" />
   <h1>HyperHost</h1>
-  <p><strong>Professional Local Virtual Domain & HTTPS Manager for Windows</strong></p>
+  <p><strong>Professional Local Virtual Domain & HTTPS Manager</strong></p>
   <p>
     <a href="../../releases/latest"><img src="https://img.shields.io/github/v/release/ptn1411/HyperHost?style=flat-square&color=blue" alt="Release" /></a>
-    <img src="https://img.shields.io/badge/platform-Windows-0078d4?style=flat-square" alt="Windows" />
+    <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078d4?style=flat-square" alt="Cross-platform" />
     <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT" />
   </p>
 </div>
 
 ---
 
-**HyperHost** là một công cụ mã nguồn mở dành riêng cho các lập trình viên trên hệ điều hành Windows. Công cụ này đóng vai trò như một bảng điều khiển Nginx siêu tốc, giúp bạn tự động định tuyến tên miền ảo (ví dụ: `my-project.test` hoặc `api.local`) tới các cổng `localhost` đang chạy với **đầy đủ chứng chỉ HTTPS (SSL) hợp lệ**.
+**HyperHost** là công cụ mã nguồn mở dành cho lập trình viên trên **Windows, macOS và Linux**. Hoạt động như một bảng điều khiển Nginx siêu tốc, tự động định tuyến tên miền ảo (ví dụ: `my-project.test`, `api.local`) tới các cổng `localhost` đang chạy với **chứng chỉ HTTPS hợp lệ**.
 
-Không còn cảnh phải sửa file `hosts` bằng tay, không còn phải loay hoay tạo chứng chỉ Self-Signed lỗi xanh lỗi đỏ trên trình duyệt. Chỉ cần 1 click là bạn có ngay một tên miền chuyên nghiệp ngay dưới máy tính nội bộ của mình!
+Không còn sửa file `hosts` bằng tay, không còn chứng chỉ Self-Signed lỗi đỏ trên trình duyệt. Chỉ 1 click là có ngay tên miền HTTPS chuyên nghiệp ngay trên máy cục bộ.
+
+---
 
 ## 🚀 Tính năng nổi bật
 
-- **⚡ Quản lý tên miền tức thì**: Giao diện UI/UX siêu mượt xây dựng bằng React. Tạo nhanh một tên miền và liên kết tới một cổng Upstream (VD: `localhost:3000`) chỉ trong 3 giây.
-- **🔒 HTTPS (SSL) tự động**: Tích hợp cực sâu công cụ chuyên dụng `mkcert`. Tự động đứng ra làm Tổ chức chứng thực (Certificate Authority - CA) của máy tính, cấp chứng chỉ xanh lá cây hợp lệ cho mọi tên miền ảo.
-- **💻 Text Editor cấp độ Pro**: Tích hợp lõi _Monaco Editor_ (công nghệ đằng sau VSCode). Bạn có thể viết và chèn cấu hình Raw Nginx Server blocks/Directives tùy biến với Auto-format cực kì mạnh mẽ.
-- **👻 Chế độ Background / System Tray**: Hoạt động âm thầm không làm phiền bạn. Khi bấm dấu 'X' để tắt cửa sổ, HyperHost tự giấu mình vào System Tray dưới góc phải màn hình trong khi Nginx vẫn hoạt động mượt mà.
-- **🔄 Tự động Cập Nhật (Auto-Updater)**: Khi nhà phát triển ra mắt phiên bản mới trên GitHub Releases, HyperHost sẽ tự động mở hộp thoại thông báo tải xuống & cài đặt bản mới trực tiếp nhờ lõi Tauri Updater.
-- **🌐 Public Tunnel (Cloudflare)**: Chia sẻ trang web của bạn ra ngoài Internet qua Cloudflare Tunnel. Nhấn 1 nút và nhận đường link `*.trycloudflare.com` tạm thời.
-- **📊 Live Traffic Inspector**: Theo dõi lưu lượng HTTP đi qua Nginx theo thời gian thực với giao diện dạng bảng trực quan.
+### Cốt lõi
+- **⚡ Quản lý tên miền tức thì** — Giao diện React mượt mà. Tạo domain và liên kết tới upstream (VD: `localhost:3000`) chỉ trong vài giây.
+- **🔒 HTTPS tự động (365 ngày)** — CA nội bộ tự cấp chứng chỉ xanh lá hợp lệ. Hạn sử dụng 1 năm (browser-stable), tự động gia hạn khi gần hết hạn lúc khởi động app.
+- **💻 Monaco Editor tích hợp** — Lõi editor của VSCode. Viết raw Nginx config tùy biến với syntax highlight và auto-format.
+- **👻 System Tray** — Tắt cửa sổ mà nginx vẫn chạy ngầm, ẩn vào System Tray.
+- **🔄 Auto-Updater** — Tự động thông báo và cài bản mới từ GitHub Releases.
+
+### Mới trong v0.2.1
+- **🌐 Cross-platform** — Hỗ trợ đầy đủ Windows, macOS (Homebrew nginx) và Linux. CA install/status hoạt động đúng trên mọi nền tảng.
+- **🔀 CORS Toggle** — Bật/tắt CORS headers per-domain trực tiếp từ UI. Hỗ trợ `GET/POST/PUT/DELETE/PATCH/OPTIONS` và pre-flight requests.
+- **📤 Export / Import domain** — Sao lưu toàn bộ cấu hình domain ra file JSON. Khôi phục sang máy khác hoặc sau khi cài lại hệ thống, chứng chỉ mới được tự động cấp lại.
+- **📊 Traffic Stats** — Theo dõi số request và latency trung bình per-domain theo thời gian thực qua nginx access log.
+- **🔑 CA Fingerprint** — Hiển thị SHA-256 fingerprint của CA certificate trong UI và CLI để xác minh tính toàn vẹn.
+- **✅ nginx -t validation** — Tự động kiểm tra config bằng `nginx -t` trước khi reload, tránh downtime do config lỗi.
+- **⚠️ Tunnel error handling** — Phát hiện và hiển thị lỗi khi Cloudflare Tunnel không khởi động được thay vì treo vô thời hạn.
+
+---
 
 ## 📦 Công nghệ sử dụng
 
-- **Backend**: [Rust](https://www.rust-lang.org/) & [Tauri v2](https://v2.tauri.app/).
-- **Frontend**: [React 18](https://react.dev/), [Vite](https://vitejs.dev/), và [TailwindCSS v4](https://tailwindcss.com/).
-- **Core Systems**: `nginx` (Máy chủ Proxy), `mkcert` (Quản lý HTTPS), `cloudflared` (Public Tunnel), SQLite (Dữ liệu).
+- **Backend**: [Rust](https://www.rust-lang.org/) & [Tauri v2](https://v2.tauri.app/)
+- **Frontend**: [React 19](https://react.dev/), [Vite](https://vitejs.dev/), [TailwindCSS v4](https://tailwindcss.com/)
+- **Core Systems**: `nginx` (Proxy), `mkcert` (HTTPS/NSS), `cloudflared` (Public Tunnel), SQLite (Database)
+- **CLI**: `clap` (arg parser), `comfy-table` (table output), `rcgen` + `sha2` (cert issuance & fingerprint)
+
+---
 
 ## 📥 Tải xuống & Cài đặt
 
-Ứng dụng HyperHost hiện cung cấp bộ cài `.exe` thông minh tự động (NSIS Installer) thông qua GitHub Actions CI/CD.
+Truy cập mục **[Releases](../../releases/latest)** và tải bản phù hợp với hệ điều hành của bạn:
 
-Bạn hãy truy cập vào mục **[Releases](../../releases/latest)** của kho lưu trữ này và tải về file `HyperHost_..._x64-setup.exe`. Trình cài đặt sẽ tự động lưu vào `C:\Program Files\HyperHost` và đổ biểu tượng ra màn hình Destkop cho bạn.
+| Nền tảng | File |
+|----------|------|
+| Windows x64 | `HyperHost_x64-setup.exe` |
+| macOS Apple Silicon | `HyperHost_aarch64.dmg` |
+| macOS Intel | `HyperHost_x64.dmg` |
+| Linux x64 | `HyperHost_amd64.deb` / `.AppImage` |
+
+### Yêu cầu bổ sung theo nền tảng
+
+**Windows** — nginx bundled sẵn, không cần cài thêm.
+
+**macOS**:
+```bash
+brew install nginx
+```
+
+**Linux (Debian/Ubuntu)**:
+```bash
+sudo apt install nginx
+```
 
 ---
 
 ## ⌨️ HyperHost CLI (`hyh`)
 
-Ngoài giao diện đồ hoạ (GUI), HyperHost còn đi kèm công cụ dòng lệnh **`hyh`** cho phép bạn quản lý toàn bộ hệ thống ngay từ Terminal/PowerShell mà không cần mở ứng dụng chính.
+Ngoài GUI, HyperHost đi kèm công cụ dòng lệnh **`hyh`** để quản lý toàn bộ hệ thống từ Terminal mà không cần mở ứng dụng chính.
 
-> **Lưu ý:** CLI cần chạy dưới quyền **Administrator** vì phải ghi file `hosts` hệ thống và quản lý tiến trình Nginx.
+> **Lưu ý:** CLI cần chạy với quyền **Administrator/sudo** vì phải ghi file `hosts` và quản lý nginx.
 
 ### Cài đặt CLI
 
-CLI đã được tự động cài sẵn khi bạn cài HyperHost qua Installer. Binary `hyh.exe` nằm trong thư mục cài đặt và đã được đăng ký vào `PATH` hệ thống.
-
-Nếu tự build từ source:
+Binary `hyh` được đóng gói sẵn trong installer. Nếu tự build từ source:
 
 ```bash
 cd src-tauri
+
+# Linux / macOS
+cargo build --release --bin hyh --no-default-features
+# Output: target/release/hyh
+
+# Windows
 cargo build --release --bin hyh --no-default-features
 # Output: target/release/hyh.exe
 ```
@@ -76,31 +114,23 @@ COMMANDS:
 
 ### `hyh add` — Thêm tên miền
 
-Tạo một tên miền cục bộ mới kèm chứng chỉ HTTPS, tự động cập nhật file `hosts` và cấu hình Nginx.
+Tạo domain cục bộ mới kèm chứng chỉ HTTPS 365 ngày, tự động cập nhật file `hosts` và cấu hình Nginx.
 
 ```bash
 hyh add <DOMAIN> <UPSTREAM>
 ```
 
-| Tham số      | Mô tả                                          | Ví dụ                       |
-| ------------ | ----------------------------------------------- | --------------------------- |
-| `<DOMAIN>`   | Tên miền cục bộ (bắt buộc kết thúc `.test` hoặc `.local`) | `myapp.test`                |
-| `<UPSTREAM>` | Địa chỉ server upstream kèm protocol            | `http://127.0.0.1:3000`     |
+| Tham số | Mô tả | Ví dụ |
+|---------|-------|-------|
+| `<DOMAIN>` | Tên miền cục bộ (kết thúc `.test` hoặc `.local`) | `myapp.test` |
+| `<UPSTREAM>` | Địa chỉ server upstream | `http://127.0.0.1:3000` |
 
-**Ví dụ mẫu:**
+**Ví dụ:**
 
 ```bash
-# Tạo domain đơn giản trỏ về React dev server
 hyh add myapp.test http://127.0.0.1:3000
-
-# Tạo domain cho API backend đang chạy ở port 8080
 hyh add api.test http://127.0.0.1:8080
-
-# Tạo domain cho Laravel (Herd/Valet)
 hyh add laravel.local http://127.0.0.1:8000
-
-# Tạo domain cho Next.js
-hyh add shop.test https://127.0.0.1:3001
 ```
 
 **Kết quả mẫu:**
@@ -119,14 +149,6 @@ hyh add shop.test https://127.0.0.1:3001
 
 ### `hyh remove` — Xóa tên miền
 
-Xóa tên miền khỏi hệ thống, bao gồm chứng chỉ SSL, bản ghi hosts, và cấu hình Nginx.
-
-```bash
-hyh remove <DOMAIN>
-```
-
-**Ví dụ:**
-
 ```bash
 hyh remove myapp.test
 # ✅ Removed myapp.test
@@ -136,13 +158,9 @@ hyh remove myapp.test
 
 ### `hyh list` — Liệt kê tên miền
 
-Hiển thị bảng tất cả tên miền đã cấu hình kèm trạng thái hoạt động và chứng chỉ SSL.
-
 ```bash
 hyh list
 ```
-
-**Kết quả mẫu:**
 
 ```
 ╭────────┬──────────────────┬────────────────────────────────┬───────────╮
@@ -160,20 +178,10 @@ hyh list
 
 ### `hyh toggle` — Bật/tắt tên miền
 
-Chuyển đổi trạng thái hoạt động của tên miền. Khi tắt, Nginx sẽ không proxy cho domain đó nữa nhưng cấu hình vẫn được giữ nguyên.
-
 ```bash
-hyh toggle <DOMAIN>
-```
-
-**Ví dụ:**
-
-```bash
-# Tắt tạm thời một domain
 hyh toggle old-project.test
 # ✅ old-project.test → ⚫ disabled
 
-# Bật lại
 hyh toggle old-project.test
 # ✅ old-project.test → 🟢 enabled
 ```
@@ -182,95 +190,64 @@ hyh toggle old-project.test
 
 ### `hyh nginx` — Quản lý Nginx
 
-Điều khiển tiến trình Nginx proxy server.
-
 ```bash
-hyh nginx <ACTION>
-
-ACTIONS:
-  start    Khởi động Nginx
-  stop     Dừng Nginx
-  reload   Tải lại cấu hình (không cần restart)
-  status   Kiểm tra trạng thái Nginx
-  logs     Xem log lỗi gần nhất
+hyh nginx start    # Khởi động nginx
+hyh nginx stop     # Dừng nginx
+hyh nginx reload   # Reload config (có nginx -t kiểm tra trước)
+hyh nginx status   # Kiểm tra trạng thái
+hyh nginx logs     # Xem error log (mặc định 20 dòng)
+hyh nginx logs -n 50  # Xem 50 dòng gần nhất
 ```
 
-**Ví dụ mẫu:**
-
-```bash
-# Khởi động Nginx
-hyh nginx start
-# ✅ nginx started
-
-# Kiểm tra trạng thái
-hyh nginx status
-# nginx: 🟢 running
-
-# Tải lại sau khi sửa cấu hình
-hyh nginx reload
-# ✅ nginx reloaded
-
-# Xem 50 dòng log lỗi gần nhất
-hyh nginx logs -n 50
-
-# Dừng Nginx
-hyh nginx stop
-# ✅ nginx stopped
+```
+# Ví dụ kết quả
+nginx: 🟢 running
+✅ nginx reloaded
 ```
 
 ---
 
 ### `hyh ca` — Quản lý Certificate Authority
 
-Quản lý CA nội bộ dùng để cấp chứng chỉ SSL hợp lệ cho các tên miền cục bộ.
+Hỗ trợ Windows (certutil), macOS (security), và Linux (update-ca-certificates).
 
 ```bash
-hyh ca <ACTION>
-
-ACTIONS:
-  install  Cài đặt CA vào Windows Trust Store
-  status   Kiểm tra trạng thái CA
+hyh ca install   # Cài CA vào system trust store
+hyh ca status    # Kiểm tra trạng thái CA + SHA-256 fingerprint
 ```
 
-**Ví dụ mẫu:**
+**Kết quả mẫu:**
 
 ```bash
-# Cài đặt CA (cần Admin) — trình duyệt sẽ tin tưởng SSL sau bước này
-hyh ca install
-# 🔐 Installing CA to Windows trust store...
-#   ✓ certutil: Chrome/Edge trusted
-#   ✓ mkcert: Firefox NSS trusted
-#
+$ hyh ca install
+# ✓ mkcert: Firefox NSS trusted
 # ✅ CA installed successfully
 
-# Kiểm tra CA đã được cài đặt chưa
-hyh ca status
+$ hyh ca status
 # CA: 🟢 installed & trusted
+# SHA-256: 4A:F2:1B:...:9C:3D
 ```
 
 ---
 
-### Quy trình sử dụng mẫu (Workflow)
-
-Dưới đây là quy trình hoàn chỉnh từ lúc cài đặt tới khi có HTTPS tên miền cục bộ:
+### Quy trình sử dụng mẫu
 
 ```bash
-# Bước 1: Cài đặt CA vào hệ thống (chỉ cần làm 1 lần)
+# Bước 1: Cài CA vào hệ thống (chỉ cần làm 1 lần)
 hyh ca install
 
-# Bước 2: Khởi động Nginx
+# Bước 2: Khởi động nginx
 hyh nginx start
 
-# Bước 3: Thêm tên miền cho React app đang chạy tại port 3000
+# Bước 3: Thêm domain cho React dev server
 hyh add myapp.test http://127.0.0.1:3000
 
-# Bước 4: Mở trình duyệt và truy cập
-# → https://myapp.test  ✅ Xanh lá, HTTPS hợp lệ!
+# Bước 4: Mở trình duyệt → https://myapp.test  ✅ HTTPS xanh lá!
 
-# Bước 5: Xem danh sách domain hiện có
+# Bước 5: Xem danh sách
 hyh list
 
-# Bước 6: Tắt domain khi không cần nữa
+# Bước 6: Tắt domain khi không cần
 hyh toggle myapp.test
 ```
 
@@ -278,20 +255,22 @@ hyh toggle myapp.test
 
 ## 🌐 Public Tunnel (Cloudflare)
 
-HyperHost tích hợp sẵn `cloudflared` để chia sẻ trang web cục bộ ra ngoài Internet mà không cần cấu hình Router hay mua tên miền.
+Chia sẻ trang web cục bộ ra Internet qua Cloudflare Tunnel — không cần cấu hình Router, không cần mua domain.
 
 ### Cách sử dụng
 
 1. Mở HyperHost GUI.
-2. Nhấn nút **🌐** (Share Public Tunnel) cạnh domain bất kỳ.
-3. Chờ vài giây — một URL dạng `https://xxx-yyy.trycloudflare.com` sẽ xuất hiện.
-4. Gửi link này cho bất kỳ ai trên thế giới.
+2. Nhấn nút **🌐** cạnh domain bất kỳ.
+3. Chờ vài giây — URL dạng `https://xxx-yyy.trycloudflare.com` xuất hiện.
+4. Gửi link cho bất kỳ ai.
 
-### Lưu ý quan trọng cho người dùng tại Việt Nam
+> **v0.2.1**: Nếu tunnel không kết nối được, app hiển thị thông báo lỗi rõ ràng thay vì treo vô thời hạn.
 
-Một số nhà mạng Việt Nam (VNPT, Viettel, FPT) **chặn DNS** của `*.trycloudflare.com`. Nếu bạn hoặc người nhận link gặp lỗi `DNS_PROBE_FINISHED_NXDOMAIN`, hãy đổi DNS:
+### Lưu ý cho người dùng tại Việt Nam
 
-**Cách 1 — Đổi DNS hệ thống (PowerShell Admin):**
+Một số nhà mạng (VNPT, Viettel, FPT) chặn DNS `*.trycloudflare.com`. Nếu gặp lỗi `DNS_PROBE_FINISHED_NXDOMAIN`:
+
+**Đổi DNS hệ thống (Windows PowerShell Admin):**
 
 ```powershell
 netsh interface ip set dns "Wi-Fi" static 1.1.1.1
@@ -299,57 +278,47 @@ netsh interface ip add dns "Wi-Fi" 8.8.8.8 index=2
 ipconfig /flushdns
 ```
 
-**Cách 2 — Bật Secure DNS trên trình duyệt:**
+**Bật Secure DNS trên trình duyệt:**
 
-1. Mở `chrome://settings/security` (Chrome) hoặc `edge://settings/privacy` (Edge).
-2. Bật **"Use secure DNS"**.
-3. Chọn **Cloudflare (1.1.1.1)** hoặc **Google (Public DNS)**.
+1. Chrome: `chrome://settings/security` → bật **Use secure DNS** → chọn Cloudflare.
+2. Edge: `edge://settings/privacy` → bật **Use secure DNS**.
 
 ---
 
-## 🛠 Hướng dẫn Dành cho Developer (Tự Build)
+## 🛠 Hướng dẫn cho Developer (Tự Build)
 
-Nếu bạn muốn đóng góp code hoặc tự Build từ gốc, hãy làm theo các bước sau:
+### Yêu cầu hệ thống
 
-**Yêu cầu hệ thống:** NodeJS (v20+), Rust, và C++ Build Tools for Windows.
+| | Windows | macOS | Linux |
+|-|---------|-------|-------|
+| Runtime | Node.js 20+, Rust, C++ Build Tools | Node.js 20+, Rust, Xcode CLI | Node.js 20+, Rust, `libgtk-3-dev` |
+| nginx | bundled | `brew install nginx` | `sudo apt install nginx` |
 
-1.  **Clone mã nguồn**:
-    ```bash
-    git clone https://github.com/ptn1411/HyperHost.git
-    cd HyperHost
-    ```
-2.  **Cài đặt thư viện Frontend**:
+### Các bước
 
-    ```bash
-    npm install
-    ```
+```bash
+# 1. Clone
+git clone https://github.com/ptn1411/HyperHost.git
+cd HyperHost
 
-3.  **Khởi chạy chế độ Phát triển (Dev Mode)**:
+# 2. Cài frontend deps
+npm install
 
-    ```bash
-    # Cần chạy ở Terminal quyền Administrator
-    npm run tauri dev
-    ```
+# 3. Dev mode (cần quyền admin/sudo)
+npm run tauri dev
 
-4.  **Build CLI riêng (không cần GUI)**:
+# 4. Build CLI riêng (không cần GUI/GTK)
+cd src-tauri
+cargo build --release --bin hyh --no-default-features
 
-    ```bash
-    cd src-tauri
-    cargo build --release --bin hyh --no-default-features
-    # Output: target/release/hyh.exe
-    ```
+# 5. Build toàn bộ app
+npm run tauri build
+```
 
-5.  **Đóng gói (Build) ra file Exe**:
+> **Lưu ý:** Private key của Updater không được commit vào repo. Nếu tự build và muốn dùng Auto-Updater, hãy tạo key riêng bằng `tauri signer generate`.
 
-    ```bash
-    # (Tùy chọn) Nếu bạn muốn Build Updater, hãy nạp biến môi trường
-    # $env:TAURI_PRIVATE_KEY="<Private-Key>"
+---
 
-    npm run tauri build
-    ```
+## 📄 Giấy phép
 
-_Lưu ý: Kho chứa không đẩy file `updater_keys` (Private Key) để bảo mật chống giả mạo cập nhật. Bạn phải sử dụng khóa của chính mình nếu tự build và muốn dùng Updater._
-
-## 📄 Giấy phép (License)
-
-Dự án được mở mã nguồn dưới chứng chỉ MIT. Bạn hoàn toàn có thể tự do chỉnh sửa và sử dụng.
+Dự án mở mã nguồn theo giấy phép MIT. Tự do sử dụng, chỉnh sửa và phân phối.

@@ -79,6 +79,7 @@ pub async fn add_domain(
         domain: domain.clone(),
         upstream,
         enabled: true,
+        cors_enabled: false,
         cert_expiry: expiry.clone(),
         created_at: None,
         advanced_config,
@@ -160,11 +161,22 @@ pub async fn edit_domain(
         .checked_add_signed(chrono::Duration::days(crate::cert::ca::CERT_VALIDITY_DAYS))
         .map(|d| d.to_rfc3339());
 
+    // Preserve cors_enabled from existing domain if renaming
+    let cors_enabled = if old_domain != domain {
+        false
+    } else {
+        state.db.list_domains().ok()
+            .and_then(|ds| ds.into_iter().find(|d| d.domain == domain))
+            .map(|d| d.cors_enabled)
+            .unwrap_or(false)
+    };
+
     let cfg = DomainConfig {
         id: None,
         domain: domain.clone(),
         upstream,
         enabled: true,
+        cors_enabled,
         cert_expiry: expiry.clone(),
         created_at: None,
         advanced_config,
@@ -364,6 +376,104 @@ pub async fn stop_tunnel(
 ) -> Result<(), String> {
     state.cloudflared.stop(&domain);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn toggle_cors(
+    domain: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<bool, String> {
+    let new_state = state.db.toggle_cors(&domain).map_err(|e| e.to_string())?;
+    rebuild_nginx(&state).map_err(|e| e.to_string())?;
+    Ok(new_state)
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct ExportData {
+    version: u32,
+    domains: Vec<crate::db::DomainConfig>,
+}
+
+#[tauri::command]
+pub async fn export_domains(state: tauri::State<'_, AppState>) -> Result<String, String> {
+    let domains = state.db.list_domains().map_err(|e| e.to_string())?;
+    // Strip sensitive/internal fields before export
+    let clean: Vec<_> = domains
+        .into_iter()
+        .map(|d| crate::db::DomainConfig {
+            id: None,
+            created_at: None,
+            cert_expiry: None,
+            ..d
+        })
+        .collect();
+    let data = ExportData { version: 1, domains: clean };
+    serde_json::to_string_pretty(&data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn import_domains(
+    json: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<DomainStatus>, String> {
+    let data: ExportData = serde_json::from_str(&json)
+        .map_err(|e| format!("Invalid import file: {}", e))?;
+
+    let mut imported = Vec::new();
+    let cert_dir = state.paths.cert_dir();
+    std::fs::create_dir_all(&cert_dir).map_err(|e| e.to_string())?;
+
+    for cfg in data.domains {
+        // Validate
+        if !cfg.domain.ends_with(".test") && !cfg.domain.ends_with(".local") {
+            continue; // skip invalid domains silently
+        }
+        if !cfg.upstream.starts_with("http://") && !cfg.upstream.starts_with("https://") {
+            continue;
+        }
+
+        let (cert_pem, key_pem) = match state.ca.issue_for_domain(&cfg.domain) {
+            Ok(pair) => pair,
+            Err(e) => {
+                tracing::warn!("import: failed to issue cert for {}: {}", cfg.domain, e);
+                continue;
+            }
+        };
+
+        let _ = std::fs::write(cert_dir.join(format!("{}.crt", cfg.domain)), &cert_pem);
+        let _ = std::fs::write(cert_dir.join(format!("{}.key", cfg.domain)), &key_pem);
+
+        let expiry = chrono::Utc::now()
+            .checked_add_signed(chrono::Duration::days(crate::cert::ca::CERT_VALIDITY_DAYS))
+            .map(|d| d.to_rfc3339());
+
+        let new_cfg = crate::db::DomainConfig {
+            id: None,
+            cert_expiry: expiry.clone(),
+            created_at: None,
+            ..cfg
+        };
+
+        if let Err(e) = state.db.upsert_domain(&new_cfg, &cert_pem, &key_pem) {
+            tracing::warn!("import: DB upsert failed for {}: {}", new_cfg.domain, e);
+            continue;
+        }
+
+        imported.push(DomainStatus {
+            cert_valid: true,
+            cert_expiry: expiry,
+            config: new_cfg,
+        });
+    }
+
+    // Sync hosts + rebuild nginx once after all imports
+    if !imported.is_empty() {
+        let active = state.db.list_enabled_domains().map_err(|e| e.to_string())?;
+        crate::dns::hosts::sync_hosts(&active).map_err(|e| e.to_string())?;
+        rebuild_nginx(&state).map_err(|e| e.to_string())?;
+    }
+
+    Ok(imported)
 }
 
 fn rebuild_nginx(state: &AppState) -> anyhow::Result<()> {

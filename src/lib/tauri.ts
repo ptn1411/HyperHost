@@ -5,6 +5,7 @@ export interface DomainConfig {
   domain: string;
   upstream: string;
   enabled: boolean;
+  cors_enabled: boolean;
   cert_expiry?: string;
   created_at?: string;
   advanced_config?: string;
@@ -46,4 +47,10 @@ export const api = {
     invoke<void>("start_tunnel", { domain }),
   stopTunnel: (domain: string) =>
     invoke<void>("stop_tunnel", { domain }),
+  toggleCors: (domain: string) =>
+    invoke<boolean>("toggle_cors", { domain }),
+  exportDomains: () =>
+    invoke<string>("export_domains"),
+  importDomains: (json: string) =>
+    invoke<DomainStatus[]>("import_domains", { json }),
 };

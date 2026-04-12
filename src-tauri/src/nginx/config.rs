@@ -52,6 +52,25 @@ http {{
             conf.push_str(&replaced);
             conf.push_str("\n");
         } else {
+            let cors_block = if d.cors_enabled {
+                r#"
+        # CORS headers
+        add_header 'Access-Control-Allow-Origin'  '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, X-Requested-With' always;
+        add_header 'Access-Control-Max-Age'       86400 always;
+
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin'  '*';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, X-Requested-With';
+            add_header 'Content-Length' 0;
+            return 204;
+        }"#
+            } else {
+                ""
+            };
+
             conf.push_str(&format!(
                 r#"
     server {{
@@ -73,7 +92,7 @@ http {{
         proxy_set_header   X-Real-IP  $remote_addr;
         proxy_read_timeout 300s;
         proxy_send_timeout 300s;
-
+{cors_block}
 {advanced_config}
 
         location / {{
@@ -85,6 +104,7 @@ http {{
                 cert = cert,
                 key = key,
                 upstream = d.upstream,
+                cors_block = cors_block,
                 advanced_config = d.advanced_config.as_deref().unwrap_or(""),
             ));
         }

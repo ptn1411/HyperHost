@@ -194,6 +194,9 @@ pub fn run() {
             ipc::commands::get_nginx_log,
             ipc::commands::start_tunnel,
             ipc::commands::stop_tunnel,
+            ipc::commands::toggle_cors,
+            ipc::commands::export_domains,
+            ipc::commands::import_domains,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

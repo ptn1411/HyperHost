@@ -6,7 +6,7 @@ use comfy_table::{
 #[derive(Parser)]
 #[command(
     name = "hyh",
-    version = "0.1.3",
+    version = "0.2.1",
     about = "⚡ HyperHost CLI — Local HTTPS domain manager",
     long_about = "Manage local virtual domains with HTTPS certificates.\nAdd domains like myapp.test that proxy to your dev server with trusted SSL.\n\nUsage: hyh add myapp.test http://127.0.0.1:3000"
 )]

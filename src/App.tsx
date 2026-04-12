@@ -1,5 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
+import { NamedTunnelPanel } from "./components/NamedTunnelPanel";
 import { NginxEditorMode } from "./components/NginxEditorMode";
 import { TrafficInspector } from "./components/TrafficInspector";
 import { UpdateDialog } from "./components/UpdateDialog";
@@ -23,7 +24,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [showLogs, setShowLogs] = useState(false);
-  const [activeTab, setActiveTab] = useState<"domains" | "traffic">("domains");
+  const [activeTab, setActiveTab] = useState<"domains" | "traffic" | "named-tunnel">("domains");
   const [tunnels, setTunnels] = useState<
     Record<string, { url: string; loading: boolean }>
   >({});
@@ -295,6 +296,11 @@ function App() {
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "traffic" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}>
             Live Traffic
           </button>
+          <button
+            onClick={() => setActiveTab("named-tunnel")}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "named-tunnel" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}>
+            Named Tunnel
+          </button>
         </div>
 
         {/* Error Banner */}
@@ -334,6 +340,8 @@ function App() {
 
         {activeTab === "traffic" ? (
           <TrafficInspector />
+        ) : activeTab === "named-tunnel" ? (
+          <NamedTunnelPanel />
         ) : (
           <>
             {editorMode !== "hidden" ? (

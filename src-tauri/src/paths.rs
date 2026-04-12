@@ -38,6 +38,12 @@ impl AppPaths {
     pub fn nginx_conf_subdir(&self) -> PathBuf {
         self.base.join("nginx").join("conf")
     }
+    pub fn cloudflared_dir(&self) -> PathBuf {
+        self.base.join("cloudflared")
+    }
+    pub fn tunnel_config(&self, tunnel_name: &str) -> PathBuf {
+        self.cloudflared_dir().join(format!("{}.yml", tunnel_name))
+    }
     pub fn log_path(&self) -> PathBuf {
         self.base.join("devhost.log")
     }
@@ -48,6 +54,7 @@ impl AppPaths {
         std::fs::create_dir_all(self.nginx_dir())?;
         std::fs::create_dir_all(self.nginx_logs())?;
         std::fs::create_dir_all(self.nginx_conf_subdir())?;
+        std::fs::create_dir_all(self.cloudflared_dir())?;
 
         // Write mime.types if not already present — nginx requires this file
         // via the `include "{nginx_dir}/conf/mime.types"` directive in nginx.conf

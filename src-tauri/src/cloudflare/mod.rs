@@ -1,3 +1,5 @@
+pub mod named_tunnel;
+
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};

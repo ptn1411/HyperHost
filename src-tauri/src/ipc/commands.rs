@@ -325,6 +325,163 @@ pub async fn stop_tunnel(
     Ok(())
 }
 
+// ── Named Tunnel commands ──
+
+#[tauri::command]
+pub async fn cloudflare_login(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let exe = crate::resolve_cloudflared_exe();
+    crate::cloudflare::named_tunnel::NamedTunnelManager::login(&exe).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn cloudflare_login_status() -> Result<bool, String> {
+    Ok(crate::cloudflare::named_tunnel::NamedTunnelManager::is_logged_in())
+}
+
+#[tauri::command]
+pub async fn list_named_tunnels(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<crate::db::NamedTunnelConfig>, String> {
+    state.db.list_named_tunnels().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn add_named_tunnel(
+    tunnel_name: String,
+    hostname: String,
+    upstream: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<crate::db::NamedTunnelConfig, String> {
+    if tunnel_name.trim().is_empty() {
+        return Err("Tunnel name cannot be empty".into());
+    }
+    if hostname.trim().is_empty() {
+        return Err("Hostname cannot be empty".into());
+    }
+    if !upstream.starts_with("http://") && !upstream.starts_with("https://") {
+        return Err("Upstream must start with http:// or https://".into());
+    }
+
+    let cfg = crate::db::NamedTunnelConfig {
+        id: None,
+        tunnel_name: tunnel_name.clone(),
+        tunnel_id: None,
+        credentials_path: None,
+        hostname,
+        upstream,
+        enabled: true,
+        created_at: None,
+    };
+    state.db.insert_named_tunnel(&cfg).map_err(|e| e.to_string())?;
+    state
+        .db
+        .get_named_tunnel(&tunnel_name)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Tunnel not found after insert".into())
+}
+
+#[tauri::command]
+pub async fn provision_named_tunnel(
+    tunnel_name: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let exe = crate::resolve_cloudflared_exe();
+    let (tunnel_id, creds_path) =
+        crate::cloudflare::named_tunnel::NamedTunnelManager::create_tunnel(&exe, &tunnel_name)
+            .map_err(|e| e.to_string())?;
+
+    state
+        .db
+        .update_named_tunnel_credentials(&tunnel_name, &tunnel_id, &creds_path)
+        .map_err(|e| e.to_string())?;
+
+    // Generate config.yml right away
+    let cfg = state
+        .db
+        .get_named_tunnel(&tunnel_name)
+        .map_err(|e| e.to_string())?
+        .ok_or("Tunnel not found")?;
+
+    let config_path = state.paths.tunnel_config(&tunnel_name);
+    crate::cloudflare::named_tunnel::NamedTunnelManager::generate_config(
+        &config_path,
+        &tunnel_id,
+        &creds_path,
+        &[(cfg.hostname, cfg.upstream)],
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn start_named_tunnel(
+    tunnel_name: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let cfg = state
+        .db
+        .get_named_tunnel(&tunnel_name)
+        .map_err(|e| e.to_string())?
+        .ok_or("Tunnel not found")?;
+
+    let tunnel_id = cfg
+        .tunnel_id
+        .as_deref()
+        .ok_or("Tunnel not provisioned yet — click Provision first")?;
+    let creds = cfg
+        .credentials_path
+        .as_deref()
+        .ok_or("Credentials path missing — re-provision the tunnel")?;
+
+    let config_path = state.paths.tunnel_config(&tunnel_name);
+
+    // Re-generate config in case hostname/upstream changed
+    crate::cloudflare::named_tunnel::NamedTunnelManager::generate_config(
+        &config_path,
+        tunnel_id,
+        creds,
+        &[(cfg.hostname, cfg.upstream)],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let exe = crate::resolve_cloudflared_exe();
+    state
+        .named_tunnels
+        .start(&tunnel_name, &config_path, &exe)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn stop_named_tunnel(
+    tunnel_name: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    state.named_tunnels.stop(&tunnel_name);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn named_tunnel_running(
+    tunnel_name: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<bool, String> {
+    Ok(state.named_tunnels.is_running(&tunnel_name))
+}
+
+#[tauri::command]
+pub async fn remove_named_tunnel(
+    tunnel_name: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    state.named_tunnels.stop(&tunnel_name);
+    // Remove config.yml
+    let config_path = state.paths.tunnel_config(&tunnel_name);
+    let _ = std::fs::remove_file(config_path);
+    state
+        .db
+        .remove_named_tunnel(&tunnel_name)
+        .map_err(|e| e.to_string())
+}
+
 fn rebuild_nginx(state: &AppState) -> anyhow::Result<()> {
     let all = state.db.list_domains()?;
     let nginx_conf = crate::nginx::config::generate(

@@ -29,6 +29,8 @@ pub fn init_state() -> anyhow::Result<AppState> {
         nginx,
         #[cfg(feature = "gui")]
         cloudflared: cloudflare::CloudflaredManager::new(),
+        #[cfg(feature = "gui")]
+        named_tunnels: cloudflare::named_tunnel::NamedTunnelManager::new(),
     })
 }
 
@@ -129,6 +131,15 @@ pub fn run() {
             ipc::commands::get_nginx_log,
             ipc::commands::start_tunnel,
             ipc::commands::stop_tunnel,
+            ipc::commands::cloudflare_login,
+            ipc::commands::cloudflare_login_status,
+            ipc::commands::list_named_tunnels,
+            ipc::commands::add_named_tunnel,
+            ipc::commands::provision_named_tunnel,
+            ipc::commands::start_named_tunnel,
+            ipc::commands::stop_named_tunnel,
+            ipc::commands::named_tunnel_running,
+            ipc::commands::remove_named_tunnel,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -46,7 +46,7 @@ function App() {
 
   useEffect(() => {
     refresh();
-    const unlisten = listen<{ domain: string; url: string }>(
+    const unlistenReady = listen<{ domain: string; url: string }>(
       "tunnel_ready",
       (event) => {
         setTunnels((prev) => ({
@@ -55,8 +55,20 @@ function App() {
         }));
       },
     );
+    const unlistenError = listen<{ domain: string; error: string }>(
+      "tunnel_error",
+      (event) => {
+        setTunnels((prev) => {
+          const next = { ...prev };
+          delete next[event.payload.domain];
+          return next;
+        });
+        setError(`Tunnel [${event.payload.domain}]: ${event.payload.error}`);
+      },
+    );
     return () => {
-      unlisten.then((fn) => fn());
+      unlistenReady.then((fn) => fn());
+      unlistenError.then((fn) => fn());
     };
   }, []);
 
@@ -262,7 +274,9 @@ function App() {
               </button>
             )}
             {caStatus?.installed && (
-              <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-surface-2 border border-surface-3 text-text-muted">
+              <div
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-surface-2 border border-surface-3 text-text-muted"
+                title={caStatus.fingerprint ? `SHA-256: ${caStatus.fingerprint}` : undefined}>
                 <span className="text-success">
                   <svg
                     className="w-4 h-4"
@@ -278,6 +292,11 @@ function App() {
                   </svg>
                 </span>
                 CA Trusted
+                {caStatus.fingerprint && (
+                  <span className="font-mono text-xs text-text-muted/60 truncate max-w-[120px]">
+                    {caStatus.fingerprint.slice(0, 11)}…
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -480,7 +499,7 @@ function App() {
                       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                   </svg>
-                  {showLogs ? "Hide Nginx Logs" : "View Nginx Logs"}
+                  {showLogs ? "Hide Error Log" : "Nginx Error Log"}
                 </button>
               </div>
 
@@ -776,10 +795,11 @@ function App() {
                     </svg>
                     nginx error.log
                   </h3>
-                  <div className="flex items-center gap-2 text-xs font-mono text-text-muted">
-                    <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-                    Live Tail
-                  </div>
+                  <button
+                    onClick={handleShowLogs}
+                    className="text-xs text-text-muted/60 hover:text-text-muted transition-colors cursor-pointer font-mono">
+                    ↻ Refresh
+                  </button>
                 </div>
                 <div className="bg-black/50 rounded-lg p-4 h-64 overflow-y-auto font-mono text-[11px] text-gray-300 leading-normal border border-white/5">
                   {logs.length === 0 ? (

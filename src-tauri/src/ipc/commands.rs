@@ -296,7 +296,7 @@ pub async fn ca_status(state: tauri::State<'_, AppState>) -> Result<CaStatus, St
     };
     Ok(CaStatus {
         installed,
-        fingerprint: None,
+        fingerprint: state.ca.fingerprint(),
     })
 }
 

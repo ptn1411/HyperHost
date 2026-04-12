@@ -46,7 +46,13 @@ impl NginxManager {
     }
 
     /// Zero-downtime config reload.
+    /// Validates config with `nginx -t` first to prevent downtime on bad config.
     pub fn reload(&self) -> anyhow::Result<()> {
+        // Pre-flight: validate config before applying
+        self.test_config().map_err(|e| {
+            anyhow::anyhow!("nginx config validation failed, reload aborted:\n{}", e)
+        })?;
+
         let conf_str = self.conf.to_str().unwrap().replace('\\', "/");
         let prefix_str = self.prefix.to_str().unwrap().replace('\\', "/");
 

@@ -1,4 +1,6 @@
+use base64::{engine::general_purpose::STANDARD, Engine};
 use rcgen::{BasicConstraints, CertificateParams, DistinguishedName, DnType, IsCa, KeyPair};
+use sha2::{Digest, Sha256};
 use std::path::Path;
 
 pub struct LocalCA {
@@ -93,5 +95,25 @@ impl LocalCA {
 
     pub fn cert_pem(&self) -> &str {
         &self.cert_pem
+    }
+
+    /// Compute the SHA-256 fingerprint of the CA cert (DER bytes).
+    /// Returns colon-separated uppercase hex, e.g. "AB:CD:EF:..."
+    pub fn fingerprint(&self) -> Option<String> {
+        // Strip PEM header/footer and decode base64 → DER bytes
+        let b64: String = self
+            .cert_pem
+            .lines()
+            .filter(|l| !l.starts_with("-----"))
+            .collect();
+        let der = STANDARD.decode(b64.trim()).ok()?;
+
+        let hash = Sha256::digest(&der);
+        let fingerprint = hash
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(":");
+        Some(fingerprint)
     }
 }

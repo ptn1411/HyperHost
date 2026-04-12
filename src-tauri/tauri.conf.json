@@ -28,7 +28,7 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": "nsis",
+    "targets": "all",
     "externalBin": [
       "binaries/nginx",
       "binaries/mkcert",

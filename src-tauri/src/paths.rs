@@ -1,13 +1,16 @@
 use std::path::PathBuf;
 
-/// All DevHost data lives under `%LOCALAPPDATA%\DevHost\`.
+/// All HyperHost data lives under a platform-appropriate directory:
+/// - Windows : `%LOCALAPPDATA%\HyperHost`  (falls back to `DevHost` for existing installs)
+/// - macOS   : `~/Library/Application Support/HyperHost`
+/// - Linux   : `~/.config/hyperhost`
 pub struct AppPaths {
     base: PathBuf,
 }
 
 impl AppPaths {
     pub fn new() -> Self {
-        let base = dirs_next().unwrap_or_else(|| PathBuf::from("."));
+        let base = resolve_base_dir().unwrap_or_else(|| PathBuf::from(".hyperhost"));
         Self { base }
     }
 
@@ -15,7 +18,12 @@ impl AppPaths {
         &self.base
     }
     pub fn db_path(&self) -> PathBuf {
-        self.base.join("devhost.db")
+        // Support legacy devhost.db for existing Windows installations
+        let legacy = self.base.join("devhost.db");
+        if legacy.exists() {
+            return legacy;
+        }
+        self.base.join("hyperhost.db")
     }
     pub fn ca_cert(&self) -> PathBuf {
         self.base.join("ca.crt")
@@ -39,7 +47,7 @@ impl AppPaths {
         self.base.join("nginx").join("conf")
     }
     pub fn log_path(&self) -> PathBuf {
-        self.base.join("devhost.log")
+        self.base.join("hyperhost.log")
     }
 
     /// Ensure all required directories exist and seed static nginx config files.
@@ -63,8 +71,33 @@ impl AppPaths {
     }
 }
 
-fn dirs_next() -> Option<PathBuf> {
-    std::env::var("LOCALAPPDATA")
-        .ok()
-        .map(|p| PathBuf::from(p).join("DevHost"))
+fn resolve_base_dir() -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        let base = dirs::data_local_dir()?;
+        // Backward compat: use DevHost/ if it already exists (existing installs)
+        let legacy = base.join("DevHost");
+        if legacy.exists() {
+            tracing::info!("Using legacy DevHost data dir: {}", legacy.display());
+            return Some(legacy);
+        }
+        Some(base.join("HyperHost"))
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // ~/Library/Application Support/HyperHost
+        Some(dirs::data_local_dir()?.join("HyperHost"))
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // ~/.config/hyperhost
+        Some(dirs::config_dir()?.join("hyperhost"))
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        Some(PathBuf::from(".hyperhost"))
+    }
 }

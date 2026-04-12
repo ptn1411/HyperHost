@@ -142,17 +142,49 @@ pub fn run() {
         });
 }
 
-pub fn resolve_nginx_exe() -> std::path::PathBuf {
-    let exe_dir = std::env::current_exe()
+/// Build the platform-specific sidecar binary filename.
+/// Tauri names external binaries as `{name}-{target_triple}{exe_suffix}`.
+pub fn sidecar_name(base: &str) -> String {
+    let triple = if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+        "x86_64-pc-windows-msvc"
+    } else if cfg!(all(target_os = "windows", target_arch = "aarch64")) {
+        "aarch64-pc-windows-msvc"
+    } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+        "x86_64-apple-darwin"
+    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+        "aarch64-apple-darwin"
+    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+        "x86_64-unknown-linux-gnu"
+    } else if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+        "aarch64-unknown-linux-gnu"
+    } else {
+        ""
+    };
+    let ext = std::env::consts::EXE_SUFFIX;
+    if triple.is_empty() {
+        format!("{}{}", base, ext)
+    } else {
+        format!("{}-{}{}", base, triple, ext)
+    }
+}
+
+fn exe_dir() -> std::path::PathBuf {
+    std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_default();
+        .unwrap_or_default()
+}
+
+pub fn resolve_nginx_exe() -> std::path::PathBuf {
+    let dir = exe_dir();
+    let sidecar = sidecar_name("nginx");
+    let fallback = format!("nginx{}", std::env::consts::EXE_SUFFIX);
 
     let candidates = [
-        exe_dir.join("nginx-x86_64-pc-windows-msvc.exe"),
-        exe_dir.join("nginx.exe"),
-        std::path::PathBuf::from("src-tauri/binaries/nginx-x86_64-pc-windows-msvc.exe"),
-        std::path::PathBuf::from("binaries/nginx-x86_64-pc-windows-msvc.exe"),
+        dir.join(&sidecar),
+        dir.join(&fallback),
+        std::path::PathBuf::from("src-tauri/binaries").join(&sidecar),
+        std::path::PathBuf::from("binaries").join(&sidecar),
     ];
 
     for candidate in &candidates {
@@ -162,32 +194,27 @@ pub fn resolve_nginx_exe() -> std::path::PathBuf {
         }
     }
 
-    tracing::warn!("nginx not found in expected locations, falling back to 'nginx' in PATH");
-    std::path::PathBuf::from("nginx.exe")
+    tracing::warn!("nginx not found in expected locations, falling back to PATH");
+    std::path::PathBuf::from(fallback)
 }
 
 pub fn resolve_cloudflared_exe() -> std::path::PathBuf {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_default();
+    let dir = exe_dir();
+    let sidecar = sidecar_name("cloudflared");
+    let fallback = format!("cloudflared{}", std::env::consts::EXE_SUFFIX);
 
-    let dev_binaries = exe_dir
+    let dev_binaries = dir
         .parent()
         .and_then(|p| p.parent())
         .map(|p| p.join("binaries"));
 
-    let mut candidates: Vec<std::path::PathBuf> =
-        vec![exe_dir.join("cloudflared-x86_64-pc-windows-msvc.exe")];
-
+    let mut candidates = vec![dir.join(&sidecar)];
     if let Some(dev_dir) = dev_binaries {
-        candidates.push(dev_dir.join("cloudflared-x86_64-pc-windows-msvc.exe"));
+        candidates.push(dev_dir.join(&sidecar));
     }
 
-    // 👇 thêm vào đây
     tracing::info!(
-        "resolve_cloudflared_exe: exe_dir={} candidates={:?}",
-        exe_dir.display(),
+        "resolve_cloudflared_exe: candidates={:?}",
         candidates
             .iter()
             .map(|p| format!("{} (exists={})", p.display(), p.exists()))
@@ -202,5 +229,5 @@ pub fn resolve_cloudflared_exe() -> std::path::PathBuf {
     }
 
     tracing::warn!("cloudflared not found, falling back to PATH");
-    std::path::PathBuf::from("cloudflared.exe")
+    std::path::PathBuf::from(fallback)
 }

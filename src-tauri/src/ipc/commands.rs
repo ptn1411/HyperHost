@@ -243,13 +243,33 @@ pub async fn toggle_domain(
 
 #[tauri::command]
 pub async fn install_ca(state: tauri::State<'_, AppState>) -> Result<(), String> {
-    // 1. Install via certutil (Windows trust store — Chrome/Edge)
-    let certutil_result = crate::cert::windows_store::install_ca(&state.paths.ca_cert());
-    if let Err(ref e) = certutil_result {
-        tracing::warn!("certutil install failed: {}", e);
+    let ca_cert = state.paths.ca_cert();
+
+    // Platform-specific system trust store installation
+    let result = {
+        #[cfg(target_os = "windows")]
+        {
+            crate::cert::windows_store::install_ca(&ca_cert)
+        }
+        #[cfg(target_os = "macos")]
+        {
+            crate::cert::macos_store::install_ca(&ca_cert)
+        }
+        #[cfg(target_os = "linux")]
+        {
+            crate::cert::linux_store::install_ca(&ca_cert)
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            Err(anyhow::anyhow!("CA installation not supported on this platform"))
+        }
+    };
+
+    if let Err(ref e) = result {
+        tracing::warn!("System CA install failed: {}", e);
     }
 
-    // 2. Also try mkcert -install for Firefox NSS store coverage
+    // Also try mkcert -install for Firefox NSS store coverage
     if let Some(mkcert) = crate::cert::mkcert::MkcertRunner::find() {
         if let Err(e) = mkcert.install_ca() {
             tracing::warn!("mkcert -install failed: {}", e);
@@ -258,13 +278,22 @@ pub async fn install_ca(state: tauri::State<'_, AppState>) -> Result<(), String>
         }
     }
 
-    // Return the certutil result as primary
-    certutil_result.map_err(|e| e.to_string())
+    result.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn ca_status(state: tauri::State<'_, AppState>) -> Result<CaStatus, String> {
-    let installed = crate::cert::windows_store::is_ca_installed(&state.paths.ca_cert());
+    let ca_cert = state.paths.ca_cert();
+    let installed = {
+        #[cfg(target_os = "windows")]
+        { crate::cert::windows_store::is_ca_installed(&ca_cert) }
+        #[cfg(target_os = "macos")]
+        { crate::cert::macos_store::is_ca_installed(&ca_cert) }
+        #[cfg(target_os = "linux")]
+        { crate::cert::linux_store::is_ca_installed(&ca_cert) }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        { false }
+    };
     Ok(CaStatus {
         installed,
         fingerprint: None,

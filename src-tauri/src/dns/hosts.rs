@@ -1,14 +1,17 @@
 use std::process::Command;
 
 const HOSTS_PATH: &str = r"C:\Windows\System32\drivers\etc\hosts";
-const MARKER_START: &str = "# ── DevHost BEGIN ──";
-const MARKER_END: &str = "# ── DevHost END ──";
+const MARKER_START: &str = "# ── HyperHost BEGIN ──";
+const MARKER_END: &str = "# ── HyperHost END ──";
+// Backward-compat: also strip old DevHost markers from existing hosts files
+const MARKER_START_LEGACY: &str = "# ── DevHost BEGIN ──";
+const MARKER_END_LEGACY: &str = "# ── DevHost END ──";
 
 /// Sync the list of domains into the Windows hosts file.
 /// Only touches the DevHost-managed block; leaves everything else untouched.
 pub fn sync_hosts(domains: &[String]) -> anyhow::Result<()> {
     let content = std::fs::read_to_string(HOSTS_PATH).unwrap_or_default();
-    let cleaned = strip_devhost_block(&content);
+    let cleaned = strip_managed_block(&content);
 
     let mut block = format!("\n{}\n", MARKER_START);
     for domain in domains {
@@ -24,7 +27,7 @@ pub fn sync_hosts(domains: &[String]) -> anyhow::Result<()> {
     let final_content = format!("{}{}", cleaned.trim_end(), block);
 
     // Atomic write: write to temp → rename
-    let tmp = format!("{}.__devhost_tmp", HOSTS_PATH);
+    let tmp = format!("{}.__hyperhost_tmp", HOSTS_PATH);
     std::fs::write(&tmp, &final_content)?;
     std::fs::rename(&tmp, HOSTS_PATH)?;
 
@@ -35,25 +38,27 @@ pub fn sync_hosts(domains: &[String]) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Remove all domains managed by DevHost from hosts file.
+/// Remove all domains managed by HyperHost from hosts file.
 pub fn remove_all() -> anyhow::Result<()> {
     let content = std::fs::read_to_string(HOSTS_PATH).unwrap_or_default();
-    let cleaned = strip_devhost_block(&content);
+    let cleaned = strip_managed_block(&content);
     std::fs::write(HOSTS_PATH, cleaned.trim_end())?;
     let _ = Command::new("ipconfig").args(["/flushdns"]).output();
-    tracing::info!("Removed DevHost block from hosts file");
+    tracing::info!("Removed HyperHost block from hosts file");
     Ok(())
 }
 
-fn strip_devhost_block(content: &str) -> String {
+/// Strip both current (HyperHost) and legacy (DevHost) managed blocks.
+fn strip_managed_block(content: &str) -> String {
     let mut out = String::with_capacity(content.len());
     let mut in_block = false;
     for line in content.lines() {
-        if line.trim() == MARKER_START {
+        let trimmed = line.trim();
+        if trimmed == MARKER_START || trimmed == MARKER_START_LEGACY {
             in_block = true;
             continue;
         }
-        if line.trim() == MARKER_END {
+        if trimmed == MARKER_END || trimmed == MARKER_END_LEGACY {
             in_block = false;
             continue;
         }

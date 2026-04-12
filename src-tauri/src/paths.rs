@@ -35,15 +35,30 @@ impl AppPaths {
     pub fn nginx_logs(&self) -> PathBuf {
         self.base.join("nginx").join("logs")
     }
+    pub fn nginx_conf_subdir(&self) -> PathBuf {
+        self.base.join("nginx").join("conf")
+    }
     pub fn log_path(&self) -> PathBuf {
         self.base.join("devhost.log")
     }
 
-    /// Ensure all required directories exist.
+    /// Ensure all required directories exist and seed static nginx config files.
     pub fn ensure_dirs(&self) -> anyhow::Result<()> {
         std::fs::create_dir_all(self.cert_dir())?;
         std::fs::create_dir_all(self.nginx_dir())?;
         std::fs::create_dir_all(self.nginx_logs())?;
+        std::fs::create_dir_all(self.nginx_conf_subdir())?;
+
+        // Write mime.types if not already present — nginx requires this file
+        // via the `include "{nginx_dir}/conf/mime.types"` directive in nginx.conf
+        let mime_types_path = self.nginx_conf_subdir().join("mime.types");
+        if !mime_types_path.exists() {
+            std::fs::write(
+                &mime_types_path,
+                include_str!("../binaries/nginx-extracted/nginx-1.26.2/conf/mime.types"),
+            )?;
+        }
+
         Ok(())
     }
 }

@@ -63,11 +63,12 @@ impl NginxManager {
     }
 
     pub fn stop(&self) -> anyhow::Result<()> {
+        let conf_str = self.conf.to_str().unwrap().replace('\\', "/");
         let prefix_str = self.prefix.to_str().unwrap().replace('\\', "/");
 
-        // Graceful quit
+        // Graceful quit — must pass -c so nginx can locate its PID file
         let _ = Command::new(&self.exe)
-            .args(["-p", &prefix_str, "-s", "quit"])
+            .args(["-c", &conf_str, "-p", &prefix_str, "-s", "quit"])
             .status();
 
         // Give it a moment to shut down
@@ -150,12 +151,18 @@ impl NginxManager {
     /// Kill stale nginx processes from previous DevHost runs.
     /// Only targets OUR nginx instance (by prefix), not other nginx on the system.
     fn kill_stale_processes(&self) {
+        let conf_str = self.conf.to_str().unwrap().replace('\\', "/");
         let prefix_str = self.prefix.to_str().unwrap().replace('\\', "/");
 
-        // 1. Try graceful stop via nginx signal (targets our prefix only)
-        let quit_result = Command::new(&self.exe)
-            .args(["-p", &prefix_str, "-s", "quit"])
-            .output();
+        // 1. Try graceful stop via nginx signal — only if conf file exists,
+        //    otherwise nginx will error trying to read {prefix}/conf/nginx.conf
+        let quit_result = if self.conf.exists() {
+            Command::new(&self.exe)
+                .args(["-c", &conf_str, "-p", &prefix_str, "-s", "quit"])
+                .output()
+        } else {
+            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "conf not yet written"))
+        };
 
         if let Ok(output) = &quit_result {
             if output.status.success() {

@@ -71,6 +71,17 @@ jobs:
       - name: Install Frontend Dependencies
         run: npm install
 
+      - name: Build hyh CLI binary
+        run: |
+          cd src-tauri
+          cargo build --bin hyh --no-default-features --release --target ${{ matrix.target }}
+          # Copy to binaries/ with Tauri naming convention
+          EXT=""
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then EXT=".exe"; fi
+          cp target/${{ matrix.target }}/release/hyh${EXT} \
+             binaries/hyh-${{ matrix.target }}${EXT}
+        shell: bash
+
       - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:

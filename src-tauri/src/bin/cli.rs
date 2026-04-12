@@ -7,7 +7,7 @@ use comfy_table::{
 #[command(
     name = "hyh",
     version = "0.1.3",
-    about = "⚡ HyperHost CLI — Local HTTPS domain manager for Windows",
+    about = "⚡ HyperHost CLI — Local HTTPS domain manager",
     long_about = "Manage local virtual domains with HTTPS certificates.\nAdd domains like myapp.test that proxy to your dev server with trusted SSL.\n\nUsage: hyh add myapp.test http://127.0.0.1:3000"
 )]
 struct Cli {
@@ -296,11 +296,20 @@ fn cmd_nginx(state: &devhost_lib::state::AppState, action: NginxAction) -> anyho
 }
 
 fn cmd_ca(state: &devhost_lib::state::AppState, action: CaAction) -> anyhow::Result<()> {
+    let ca_cert = state.paths.ca_cert();
     match action {
         CaAction::Install => {
-            println!("🔐 Installing CA to Windows trust store...");
-            devhost_lib::cert::windows_store::install_ca(&state.paths.ca_cert())?;
-            println!("  ✓ certutil: Chrome/Edge trusted");
+            let result = {
+                #[cfg(target_os = "windows")]
+                { devhost_lib::cert::windows_store::install_ca(&ca_cert) }
+                #[cfg(target_os = "macos")]
+                { devhost_lib::cert::macos_store::install_ca(&ca_cert) }
+                #[cfg(target_os = "linux")]
+                { devhost_lib::cert::linux_store::install_ca(&ca_cert) }
+                #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+                { Err(anyhow::anyhow!("CA installation not supported on this platform")) }
+            };
+            result?;
 
             if let Some(mkcert) = devhost_lib::cert::mkcert::MkcertRunner::find() {
                 match mkcert.install_ca() {
@@ -312,16 +321,23 @@ fn cmd_ca(state: &devhost_lib::state::AppState, action: CaAction) -> anyhow::Res
             println!("\n✅ CA installed successfully");
         }
         CaAction::Status => {
-            let installed =
-                devhost_lib::cert::windows_store::is_ca_installed(&state.paths.ca_cert());
+            let installed = {
+                #[cfg(target_os = "windows")]
+                { devhost_lib::cert::windows_store::is_ca_installed(&ca_cert) }
+                #[cfg(target_os = "macos")]
+                { devhost_lib::cert::macos_store::is_ca_installed(&ca_cert) }
+                #[cfg(target_os = "linux")]
+                { devhost_lib::cert::linux_store::is_ca_installed(&ca_cert) }
+                #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+                { false }
+            };
             println!(
                 "CA: {}",
-                if installed {
-                    "🟢 installed & trusted"
-                } else {
-                    "⚫ not installed"
-                }
+                if installed { "🟢 installed & trusted" } else { "⚫ not installed" }
             );
+            if let Some(fp) = state.ca.fingerprint() {
+                println!("SHA-256: {}", fp);
+            }
         }
     }
     Ok(())

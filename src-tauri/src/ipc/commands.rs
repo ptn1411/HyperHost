@@ -309,6 +309,18 @@ pub async fn nginx_status(state: tauri::State<'_, AppState>) -> Result<NginxInfo
 
 #[tauri::command]
 pub async fn nginx_start(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    // Check if nginx binary exists before trying to start
+    if !state.nginx.exe.exists() {
+        #[cfg(target_os = "macos")]
+        return Err("nginx not found. Install it with: brew install nginx".into());
+        #[cfg(target_os = "linux")]
+        return Err("nginx not found. Install it with: sudo apt install nginx".into());
+        #[cfg(target_os = "windows")]
+        return Err(format!("nginx binary not found at: {}", state.nginx.exe.display()));
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        return Err("nginx binary not found".into());
+    }
+
     // Rebuild config before starting to ensure it's up to date
     rebuild_nginx(&state).map_err(|e| e.to_string())?;
     state.nginx.start().map_err(|e| e.to_string())

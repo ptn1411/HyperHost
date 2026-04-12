@@ -176,26 +176,78 @@ fn exe_dir() -> std::path::PathBuf {
 }
 
 pub fn resolve_nginx_exe() -> std::path::PathBuf {
-    let dir = exe_dir();
-    let sidecar = sidecar_name("nginx");
-    let fallback = format!("nginx{}", std::env::consts::EXE_SUFFIX);
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: use bundled sidecar binary
+        let dir = exe_dir();
+        let sidecar = sidecar_name("nginx");
+        let fallback = format!("nginx{}", std::env::consts::EXE_SUFFIX);
 
-    let candidates = [
-        dir.join(&sidecar),
-        dir.join(&fallback),
-        std::path::PathBuf::from("src-tauri/binaries").join(&sidecar),
-        std::path::PathBuf::from("binaries").join(&sidecar),
-    ];
+        let candidates = [
+            dir.join(&sidecar),
+            dir.join(&fallback),
+            std::path::PathBuf::from("src-tauri/binaries").join(&sidecar),
+            std::path::PathBuf::from("binaries").join(&sidecar),
+        ];
 
-    for candidate in &candidates {
-        if candidate.exists() {
-            tracing::info!("Found nginx at: {}", candidate.display());
-            return candidate.clone();
+        for candidate in &candidates {
+            if candidate.exists() {
+                tracing::info!("Found nginx at: {}", candidate.display());
+                return candidate.clone();
+            }
         }
+
+        tracing::warn!("nginx sidecar not found, falling back to PATH");
+        std::path::PathBuf::from(fallback)
     }
 
-    tracing::warn!("nginx not found in expected locations, falling back to PATH");
-    std::path::PathBuf::from(fallback)
+    #[cfg(target_os = "macos")]
+    {
+        // macOS: use Homebrew nginx (brew install nginx)
+        let candidates = [
+            "/opt/homebrew/bin/nginx",  // Apple Silicon (ARM64)
+            "/usr/local/bin/nginx",     // Intel (x86_64)
+            "/opt/local/bin/nginx",     // MacPorts
+        ];
+
+        for path in &candidates {
+            let p = std::path::PathBuf::from(path);
+            if p.exists() {
+                tracing::info!("Found nginx at: {}", p.display());
+                return p;
+            }
+        }
+
+        tracing::warn!("nginx not found in Homebrew paths. Run: brew install nginx");
+        std::path::PathBuf::from("nginx")
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Linux: use system nginx (apt/yum install nginx)
+        let candidates = [
+            "/usr/sbin/nginx",       // Debian/Ubuntu
+            "/usr/bin/nginx",        // Some distros
+            "/usr/local/sbin/nginx", // Custom install
+            "/usr/local/bin/nginx",  // Custom install
+        ];
+
+        for path in &candidates {
+            let p = std::path::PathBuf::from(path);
+            if p.exists() {
+                tracing::info!("Found nginx at: {}", p.display());
+                return p;
+            }
+        }
+
+        tracing::warn!("nginx not found. Run: sudo apt install nginx (or yum/pacman)");
+        std::path::PathBuf::from("nginx")
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        std::path::PathBuf::from("nginx")
+    }
 }
 
 pub fn resolve_cloudflared_exe() -> std::path::PathBuf {

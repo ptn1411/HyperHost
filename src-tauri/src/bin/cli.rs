@@ -148,7 +148,7 @@ fn cmd_add(
 
     // Save to DB
     let expiry = chrono::Utc::now()
-        .checked_add_signed(chrono::Duration::days(730))
+        .checked_add_signed(chrono::Duration::days(devhost_lib::cert::ca::CERT_VALIDITY_DAYS))
         .map(|d| d.to_rfc3339());
 
     let cfg = devhost_lib::db::DomainConfig {
@@ -156,6 +156,7 @@ fn cmd_add(
         domain: domain.to_string(),
         upstream: upstream.to_string(),
         enabled: true,
+        cors_enabled: false,
         cert_expiry: expiry,
         created_at: None,
         advanced_config: None,

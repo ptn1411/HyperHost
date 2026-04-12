@@ -72,6 +72,7 @@ function App() {
       (event) => {
         const host = event.payload.host;
         const ms = parseFloat(event.payload.latency) * 1000;
+        if (!host || isNaN(ms)) return;
         setStats((prev) => {
           const cur = prev[host] ?? { count: 0, totalMs: 0 };
           return { ...prev, [host]: { count: cur.count + 1, totalMs: cur.totalMs + ms } };

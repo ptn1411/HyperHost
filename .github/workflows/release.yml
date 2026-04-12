@@ -17,18 +17,23 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             label: windows-x64
+            # Use NSIS only — WiX/MSI fails with large binaries (cloudflared ~63MB)
+            bundles: nsis
 
           - os: macos-latest
             target: x86_64-apple-darwin
             label: macos-x64
+            bundles: dmg
 
           - os: macos-latest
             target: aarch64-apple-darwin
             label: macos-arm64
+            bundles: dmg
 
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             label: linux-x64
+            bundles: deb,appimage
 
     runs-on: ${{ matrix.os }}
     name: Build (${{ matrix.label }})
@@ -94,4 +99,4 @@ jobs:
           releaseBody: 'Phiên bản mới nhất của HyperHost. Tải xuống file phù hợp với hệ điều hành bên dưới.'
           releaseDraft: false
           prerelease: false
-          args: --target ${{ matrix.target }}
+          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}

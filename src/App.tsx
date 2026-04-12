@@ -4,7 +4,7 @@ import { NamedTunnelPanel } from "./components/NamedTunnelPanel";
 import { NginxEditorMode } from "./components/NginxEditorMode";
 import { TrafficInspector } from "./components/TrafficInspector";
 import { UpdateDialog } from "./components/UpdateDialog";
-import { api, CaStatus, DomainStatus, NginxInfo } from "./lib/tauri";
+import { api, AppSettings, CaStatus, DomainStatus, NginxInfo } from "./lib/tauri";
 
 function App() {
   const [domains, setDomains] = useState<DomainStatus[]>([]);
@@ -24,7 +24,8 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [showLogs, setShowLogs] = useState(false);
-  const [activeTab, setActiveTab] = useState<"domains" | "traffic" | "named-tunnel">("domains");
+  const [activeTab, setActiveTab] = useState<"domains" | "traffic" | "named-tunnel" | "settings">("domains");
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [tunnels, setTunnels] = useState<
     Record<string, { url: string; loading: boolean }>
   >({});
@@ -48,6 +49,7 @@ function App() {
 
   useEffect(() => {
     refresh();
+    api.getAppSettings().then(setAppSettings).catch(() => {});
     const unlistenReady = listen<{ domain: string; url: string }>(
       "tunnel_ready",
       (event) => {
@@ -379,6 +381,11 @@ function App() {
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "named-tunnel" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}>
             Named Tunnel
           </button>
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "settings" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}>
+            ⚙ Cài đặt
+          </button>
         </div>
 
         {/* Error Banner */}
@@ -420,6 +427,62 @@ function App() {
           <TrafficInspector />
         ) : activeTab === "named-tunnel" ? (
           <NamedTunnelPanel />
+        ) : activeTab === "settings" ? (
+          <div className="max-w-lg">
+            <h2 className="text-lg font-bold text-text mb-6">Cài đặt ứng dụng</h2>
+            <div className="space-y-4">
+              {/* Minimize to Tray */}
+              <div className="flex items-center justify-between p-4 rounded-xl bg-surface-2 border border-surface-3/50">
+                <div>
+                  <p className="text-sm font-semibold text-text">Ẩn xuống khay hệ thống khi đóng cửa sổ</p>
+                  <p className="text-xs text-text-muted mt-0.5">Nhấn X sẽ thu nhỏ xuống System Tray thay vì thoát hẳn</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const next = !appSettings?.minimize_to_tray;
+                    await api.setMinimizeToTray(next);
+                    setAppSettings((s) => s ? { ...s, minimize_to_tray: next } : s);
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                    appSettings?.minimize_to_tray ? "bg-accent" : "bg-surface-3"
+                  }`}>
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    appSettings?.minimize_to_tray ? "translate-x-6" : "translate-x-1"
+                  }`} />
+                </button>
+              </div>
+
+              {/* Autostart — Windows only */}
+              <div className="flex items-center justify-between p-4 rounded-xl bg-surface-2 border border-surface-3/50">
+                <div>
+                  <p className="text-sm font-semibold text-text">Khởi động cùng Windows</p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Tự động mở HyperHost khi đăng nhập Windows
+                    {appSettings !== null && !("autostart" in appSettings) && (
+                      <span className="text-warning"> • Chỉ hỗ trợ trên Windows</span>
+                    )}
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const next = !appSettings?.autostart;
+                    try {
+                      await api.setAutostart(next);
+                      setAppSettings((s) => s ? { ...s, autostart: next } : s);
+                    } catch (e: any) {
+                      setError(String(e));
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                    appSettings?.autostart ? "bg-accent" : "bg-surface-3"
+                  }`}>
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    appSettings?.autostart ? "translate-x-6" : "translate-x-1"
+                  }`} />
+                </button>
+              </div>
+            </div>
+          </div>
         ) : (
           <>
             {editorMode !== "hidden" ? (

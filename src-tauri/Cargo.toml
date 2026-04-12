@@ -45,3 +45,6 @@ tauri-plugin-process = { version = "2.3.1", optional = true }
 [features]
 default = ["gui"]
 gui = ["dep:tauri", "dep:tauri-plugin-opener", "dep:tauri-plugin-shell", "dep:tauri-plugin-updater", "dep:tauri-plugin-process"]
+
+[target.'cfg(target_os = "windows")'.dependencies]
+winreg = "0.52"

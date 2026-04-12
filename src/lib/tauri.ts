@@ -37,6 +37,11 @@ export interface NginxInfo {
   running: boolean;
 }
 
+export interface AppSettings {
+  autostart: boolean;
+  minimize_to_tray: boolean;
+}
+
 export const api = {
   listDomains: () => invoke<DomainStatus[]>("list_domains"),
   addDomain: (domain: string, upstream: string, advancedConfig?: string) =>
@@ -84,4 +89,9 @@ export const api = {
     invoke<string>("export_domains"),
   importDomains: (json: string) =>
     invoke<DomainStatus[]>("import_domains", { json }),
+
+  // App Settings
+  getAppSettings: () => invoke<AppSettings>("get_app_settings"),
+  setAutostart: (enabled: boolean) => invoke<void>("set_autostart", { enabled }),
+  setMinimizeToTray: (enabled: boolean) => invoke<void>("set_minimize_to_tray", { enabled }),
 };

@@ -22,6 +22,14 @@ pub fn init_state() -> anyhow::Result<AppState> {
     // Auto-renew certs expiring within 30 days
     renew_expiring_certs(&db, &ca, &paths);
 
+    // Load persisted settings (default minimize_to_tray = true)
+    let minimize_to_tray = db
+        .get_setting("minimize_to_tray")
+        .ok()
+        .flatten()
+        .map(|v| v == "true")
+        .unwrap_or(true);
+
     let nginx_exe = resolve_nginx_exe();
     let nginx = nginx::NginxManager::new(nginx_exe, paths.nginx_conf(), paths.nginx_dir());
 
@@ -30,6 +38,7 @@ pub fn init_state() -> anyhow::Result<AppState> {
         db,
         ca,
         nginx,
+        minimize_to_tray: std::sync::atomic::AtomicBool::new(minimize_to_tray),
         #[cfg(feature = "gui")]
         cloudflared: cloudflare::CloudflaredManager::new(),
         #[cfg(feature = "gui")]
@@ -177,9 +186,13 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                // Prevent app from closing and hide the window instead
-                window.hide().unwrap();
-                api.prevent_close();
+                use tauri::Manager;
+                let state = window.app_handle().state::<AppState>();
+                if state.minimize_to_tray.load(std::sync::atomic::Ordering::Relaxed) {
+                    window.hide().unwrap();
+                    api.prevent_close();
+                }
+                // else: allow normal close / exit
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -208,6 +221,9 @@ pub fn run() {
             ipc::commands::toggle_cors,
             ipc::commands::export_domains,
             ipc::commands::import_domains,
+            ipc::commands::get_app_settings,
+            ipc::commands::set_autostart,
+            ipc::commands::set_minimize_to_tray,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

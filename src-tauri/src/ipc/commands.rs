@@ -647,3 +647,92 @@ fn rebuild_nginx(state: &AppState) -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+// ── App Settings commands ──
+
+#[derive(serde::Serialize)]
+pub struct AppSettings {
+    pub autostart: bool,
+    pub minimize_to_tray: bool,
+}
+
+#[tauri::command]
+pub async fn get_app_settings(state: tauri::State<'_, AppState>) -> Result<AppSettings, String> {
+    let autostart = {
+        #[cfg(target_os = "windows")]
+        { is_autostart_windows() }
+        #[cfg(not(target_os = "windows"))]
+        { false }
+    };
+    let minimize_to_tray = state
+        .minimize_to_tray
+        .load(std::sync::atomic::Ordering::Relaxed);
+    Ok(AppSettings {
+        autostart,
+        minimize_to_tray,
+    })
+}
+
+#[tauri::command]
+pub async fn set_autostart(
+    enabled: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .db
+        .set_setting("autostart", if enabled { "true" } else { "false" })
+        .map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "windows")]
+    toggle_autostart_windows(enabled).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn set_minimize_to_tray(
+    enabled: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .minimize_to_tray
+        .store(enabled, std::sync::atomic::Ordering::Relaxed);
+    state
+        .db
+        .set_setting("minimize_to_tray", if enabled { "true" } else { "false" })
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn toggle_autostart_windows(enabled: bool) -> anyhow::Result<()> {
+    use winreg::enums::{HKEY_CURRENT_USER, KEY_SET_VALUE};
+    use winreg::RegKey;
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let run = hkcu.open_subkey_with_flags(
+        "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+        KEY_SET_VALUE,
+    )?;
+    if enabled {
+        let exe = std::env::current_exe()?;
+        run.set_value("HyperHost", &exe.to_string_lossy().to_string())?;
+    } else {
+        let _ = run.delete_value("HyperHost");
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn is_autostart_windows() -> bool {
+    use winreg::enums::{HKEY_CURRENT_USER, KEY_READ};
+    use winreg::RegKey;
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    if let Ok(run) = hkcu.open_subkey_with_flags(
+        "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+        KEY_READ,
+    ) {
+        run.get_value::<String, _>("HyperHost").is_ok()
+    } else {
+        false
+    }
+}

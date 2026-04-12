@@ -65,6 +65,10 @@ impl Database {
                 upstream         TEXT NOT NULL,
                 enabled          INTEGER NOT NULL DEFAULT 1,
                 created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
             );",
         )?;
 
@@ -256,6 +260,25 @@ impl Database {
         conn.execute(
             "DELETE FROM named_tunnels WHERE tunnel_name = ?1",
             params![name],
+        )?;
+        Ok(())
+    }
+
+    // ── App Settings methods ──
+
+    pub fn get_setting(&self, key: &str) -> anyhow::Result<Option<String>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT value FROM app_settings WHERE key = ?1")?;
+        let mut rows = stmt.query_map(params![key], |row| row.get::<_, String>(0))?;
+        Ok(rows.next().transpose()?)
+    }
+
+    pub fn set_setting(&self, key: &str, value: &str) -> anyhow::Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO app_settings (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![key, value],
         )?;
         Ok(())
     }

@@ -1,5 +1,5 @@
 !macro NSIS_HOOK_POSTINSTALL
-  ; Add install directory to system PATH so devhost-cli works from anywhere
+  ; Add install directory to system PATH so hyperhost-cli works from anywhere
   nsExec::ExecToLog 'powershell -ExecutionPolicy Bypass -Command "\
     $installDir = \"$INSTDIR\"; \
     $currentPath = [Environment]::GetEnvironmentVariable(\"Path\", \"Machine\"); \

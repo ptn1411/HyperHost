@@ -1,13 +1,13 @@
 [package]
-name = "devhost"
+name = "hyperhost"
 version = "0.1.9"
-description = "Local Virtual Domain Manager for Windows"
+description = "Local HTTPS Domain Manager"
 authors = ["NAM"]
 edition = "2021"
-default-run = "devhost"
+default-run = "hyperhost"
 
 [lib]
-name = "devhost_lib"
+name = "hyperhost_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]

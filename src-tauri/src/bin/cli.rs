@@ -95,7 +95,7 @@ fn main() {
 }
 
 fn run(cli: Cli) -> anyhow::Result<()> {
-    let state = devhost_lib::init_state()?;
+    let state = hyperhost_lib::init_state()?;
 
     match cli.command {
         Commands::Add { domain, upstream } => cmd_add(&state, &domain, &upstream)?,
@@ -110,7 +110,7 @@ fn run(cli: Cli) -> anyhow::Result<()> {
 }
 
 fn cmd_add(
-    state: &devhost_lib::state::AppState,
+    state: &hyperhost_lib::state::AppState,
     domain: &str,
     upstream: &str,
 ) -> anyhow::Result<()> {
@@ -136,7 +136,7 @@ fn cmd_add(
         }
         Err(rcgen_err) => {
             println!("  ⚠ rcgen failed: {}, trying mkcert...", rcgen_err);
-            let mkcert = devhost_lib::cert::mkcert::MkcertRunner::find()
+            let mkcert = hyperhost_lib::cert::mkcert::MkcertRunner::find()
                 .ok_or_else(|| anyhow::anyhow!("rcgen failed and mkcert not found"))?;
             mkcert.issue_for_domain(domain, &cert_dir)?;
             let cert = std::fs::read_to_string(cert_dir.join(format!("{}.crt", domain)))?;
@@ -151,7 +151,7 @@ fn cmd_add(
         .checked_add_signed(chrono::Duration::days(730))
         .map(|d| d.to_rfc3339());
 
-    let cfg = devhost_lib::db::DomainConfig {
+    let cfg = hyperhost_lib::db::DomainConfig {
         id: None,
         domain: domain.to_string(),
         upstream: upstream.to_string(),
@@ -165,7 +165,7 @@ fn cmd_add(
 
     // Sync hosts
     let active = state.db.list_enabled_domains()?;
-    devhost_lib::dns::hosts::sync_hosts(&active)?;
+    hyperhost_lib::dns::hosts::sync_hosts(&active)?;
     println!("📝 Hosts file updated");
 
     // Rebuild nginx
@@ -176,7 +176,7 @@ fn cmd_add(
     Ok(())
 }
 
-fn cmd_remove(state: &devhost_lib::state::AppState, domain: &str) -> anyhow::Result<()> {
+fn cmd_remove(state: &hyperhost_lib::state::AppState, domain: &str) -> anyhow::Result<()> {
     state.db.remove_domain(domain)?;
 
     let cert_dir = state.paths.cert_dir();
@@ -184,14 +184,14 @@ fn cmd_remove(state: &devhost_lib::state::AppState, domain: &str) -> anyhow::Res
     let _ = std::fs::remove_file(cert_dir.join(format!("{}.key", domain)));
 
     let active = state.db.list_enabled_domains()?;
-    devhost_lib::dns::hosts::sync_hosts(&active)?;
+    hyperhost_lib::dns::hosts::sync_hosts(&active)?;
     rebuild_nginx(state)?;
 
     println!("✅ Removed {}", domain);
     Ok(())
 }
 
-fn cmd_list(state: &devhost_lib::state::AppState) -> anyhow::Result<()> {
+fn cmd_list(state: &hyperhost_lib::state::AppState) -> anyhow::Result<()> {
     let domains = state.db.list_domains()?;
 
     if domains.is_empty() {
@@ -240,10 +240,10 @@ fn cmd_list(state: &devhost_lib::state::AppState) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn cmd_toggle(state: &devhost_lib::state::AppState, domain: &str) -> anyhow::Result<()> {
+fn cmd_toggle(state: &hyperhost_lib::state::AppState, domain: &str) -> anyhow::Result<()> {
     let new_state = state.db.toggle_domain(domain)?;
     let active = state.db.list_enabled_domains()?;
-    devhost_lib::dns::hosts::sync_hosts(&active)?;
+    hyperhost_lib::dns::hosts::sync_hosts(&active)?;
     rebuild_nginx(state)?;
 
     let icon = if new_state {
@@ -255,7 +255,7 @@ fn cmd_toggle(state: &devhost_lib::state::AppState, domain: &str) -> anyhow::Res
     Ok(())
 }
 
-fn cmd_nginx(state: &devhost_lib::state::AppState, action: NginxAction) -> anyhow::Result<()> {
+fn cmd_nginx(state: &hyperhost_lib::state::AppState, action: NginxAction) -> anyhow::Result<()> {
     match action {
         NginxAction::Start => {
             rebuild_nginx(state)?;
@@ -295,14 +295,14 @@ fn cmd_nginx(state: &devhost_lib::state::AppState, action: NginxAction) -> anyho
     Ok(())
 }
 
-fn cmd_ca(state: &devhost_lib::state::AppState, action: CaAction) -> anyhow::Result<()> {
+fn cmd_ca(state: &hyperhost_lib::state::AppState, action: CaAction) -> anyhow::Result<()> {
     match action {
         CaAction::Install => {
             println!("🔐 Installing CA to Windows trust store...");
-            devhost_lib::cert::windows_store::install_ca(&state.paths.ca_cert())?;
+            hyperhost_lib::cert::windows_store::install_ca(&state.paths.ca_cert())?;
             println!("  ✓ certutil: Chrome/Edge trusted");
 
-            if let Some(mkcert) = devhost_lib::cert::mkcert::MkcertRunner::find() {
+            if let Some(mkcert) = hyperhost_lib::cert::mkcert::MkcertRunner::find() {
                 match mkcert.install_ca() {
                     Ok(_) => println!("  ✓ mkcert: Firefox NSS trusted"),
                     Err(e) => println!("  ⚠ mkcert -install failed: {}", e),
@@ -313,7 +313,7 @@ fn cmd_ca(state: &devhost_lib::state::AppState, action: CaAction) -> anyhow::Res
         }
         CaAction::Status => {
             let installed =
-                devhost_lib::cert::windows_store::is_ca_installed(&state.paths.ca_cert());
+                hyperhost_lib::cert::windows_store::is_ca_installed(&state.paths.ca_cert());
             println!(
                 "CA: {}",
                 if installed {
@@ -327,9 +327,9 @@ fn cmd_ca(state: &devhost_lib::state::AppState, action: CaAction) -> anyhow::Res
     Ok(())
 }
 
-fn rebuild_nginx(state: &devhost_lib::state::AppState) -> anyhow::Result<()> {
+fn rebuild_nginx(state: &hyperhost_lib::state::AppState) -> anyhow::Result<()> {
     let all = state.db.list_domains()?;
-    let nginx_conf = devhost_lib::nginx::config::generate(
+    let nginx_conf = hyperhost_lib::nginx::config::generate(
         &all,
         state.paths.cert_dir().to_str().unwrap(),
         state.paths.nginx_dir().to_str().unwrap(),

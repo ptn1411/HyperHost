@@ -2,7 +2,7 @@ use std::path::Path;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Check if the DevHost CA is already installed in Windows LocalMachine\Root store
+/// Check if the HyperHost CA is already installed in Windows LocalMachine\Root store
 /// bằng cách so Thumbprint của file cert với store — tránh false positive khi dùng Subject match.
 pub fn is_ca_installed(ca_cert_path: &Path) -> bool {
     let path_str = match ca_cert_path.to_str() {
@@ -64,9 +64,9 @@ pub fn install_ca(ca_cert_path: &Path) -> anyhow::Result<()> {
         .as_millis();
 
     let tmp_dir = std::env::temp_dir();
-    let install_script_path = tmp_dir.join(format!("devhost_ca_install_{}.ps1", ts));
-    let result_file_path = tmp_dir.join(format!("devhost_ca_result_{}.txt", ts));
-    let wrapper_script_path = tmp_dir.join(format!("devhost_ca_wrapper_{}.ps1", ts));
+    let install_script_path = tmp_dir.join(format!("hyperhost_ca_install_{}.ps1", ts));
+    let result_file_path = tmp_dir.join(format!("hyperhost_ca_result_{}.txt", ts));
+    let wrapper_script_path = tmp_dir.join(format!("hyperhost_ca_wrapper_{}.ps1", ts));
 
     // Escape single quotes cho PowerShell string literals
     let cert_path_escaped = cert_path_str.replace('\'', "''");

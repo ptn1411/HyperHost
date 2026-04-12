@@ -30,8 +30,8 @@ impl LocalCA {
         ];
 
         let mut dn = DistinguishedName::new();
-        dn.push(DnType::CommonName, "DevHost Local CA");
-        dn.push(DnType::OrganizationName, "DevHost");
+        dn.push(DnType::CommonName, "HyperHost Local CA");
+        dn.push(DnType::OrganizationName, "HyperHost");
         params.distinguished_name = dn;
 
         let key_pair = KeyPair::generate()?;
@@ -79,8 +79,8 @@ impl LocalCA {
             rcgen::KeyUsagePurpose::DigitalSignature,
         ];
         let mut ca_dn = DistinguishedName::new();
-        ca_dn.push(DnType::CommonName, "DevHost Local CA");
-        ca_dn.push(DnType::OrganizationName, "DevHost");
+        ca_dn.push(DnType::CommonName, "HyperHost Local CA");
+        ca_dn.push(DnType::OrganizationName, "HyperHost");
         ca_params.distinguished_name = ca_dn;
         let ca_cert = ca_params.self_signed(ca_key_pair)?;
 

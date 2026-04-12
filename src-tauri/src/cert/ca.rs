@@ -3,6 +3,9 @@ use rcgen::{BasicConstraints, CertificateParams, DistinguishedName, DnType, IsCa
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
+/// Cert validity in days. Browsers cap at 398 days — 365 is safe and stable.
+pub const CERT_VALIDITY_DAYS: i64 = 365;
+
 pub struct LocalCA {
     cert_pem: String,
     key_pair: KeyPair,
@@ -58,11 +61,11 @@ impl LocalCA {
 
         let mut params = CertificateParams::new(san_strings)?;
 
-        // Ensure leaf certificate validity doesn't exceed modern browser maximums
-        // using arbitrary safe recent dates within ~2 year limits if possible.
-        // Actually rcgen defaults can trigger 398/825 day limits.
-        params.not_before = rcgen::date_time_ymd(2026, 1, 1);
-        params.not_after = rcgen::date_time_ymd(2027, 1, 1);
+        // Browsers cap at 398 days. Use 365 days from now for maximum compatibility.
+        let now = time::OffsetDateTime::now_utc();
+        let expires = now + time::Duration::days(CERT_VALIDITY_DAYS);
+        params.not_before = now;
+        params.not_after = expires;
 
         let mut dn = DistinguishedName::new();
         dn.push(DnType::CommonName, domain);

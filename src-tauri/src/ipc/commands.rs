@@ -71,7 +71,7 @@ pub async fn add_domain(
 
     // 3. Save to DB
     let expiry = chrono::Utc::now()
-        .checked_add_signed(chrono::Duration::days(730))
+        .checked_add_signed(chrono::Duration::days(crate::cert::ca::CERT_VALIDITY_DAYS))
         .map(|d| d.to_rfc3339());
 
     let cfg = DomainConfig {
@@ -157,7 +157,7 @@ pub async fn edit_domain(
     };
 
     let expiry = chrono::Utc::now()
-        .checked_add_signed(chrono::Duration::days(730))
+        .checked_add_signed(chrono::Duration::days(crate::cert::ca::CERT_VALIDITY_DAYS))
         .map(|d| d.to_rfc3339());
 
     let cfg = DomainConfig {

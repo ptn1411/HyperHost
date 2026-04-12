@@ -19,6 +19,9 @@ pub fn init_state() -> anyhow::Result<AppState> {
     let db = db::Database::open(&paths.db_path())?;
     let ca = cert::ca::LocalCA::load_or_create(paths.base_dir())?;
 
+    // Auto-renew certs expiring within 30 days
+    renew_expiring_certs(&db, &ca, &paths);
+
     let nginx_exe = resolve_nginx_exe();
     let nginx = nginx::NginxManager::new(nginx_exe, paths.nginx_conf(), paths.nginx_dir());
 
@@ -30,6 +33,68 @@ pub fn init_state() -> anyhow::Result<AppState> {
         #[cfg(feature = "gui")]
         cloudflared: cloudflare::CloudflaredManager::new(),
     })
+}
+
+/// Re-issue certs for domains expiring within RENEW_THRESHOLD_DAYS.
+fn renew_expiring_certs(
+    db: &db::Database,
+    ca: &cert::ca::LocalCA,
+    paths: &paths::AppPaths,
+) {
+    const RENEW_THRESHOLD_DAYS: i64 = 30;
+
+    let domains = match db.list_domains() {
+        Ok(d) => d,
+        Err(e) => {
+            tracing::warn!("auto-renew: failed to list domains: {}", e);
+            return;
+        }
+    };
+
+    let threshold = chrono::Utc::now()
+        + chrono::Duration::days(RENEW_THRESHOLD_DAYS);
+
+    for cfg in domains {
+        let expiring = cfg.cert_expiry.as_ref().map_or(true, |exp| {
+            chrono::DateTime::parse_from_rfc3339(exp)
+                .map(|d| d < threshold)
+                .unwrap_or(true)
+        });
+
+        if !expiring {
+            continue;
+        }
+
+        tracing::info!("auto-renew: cert for {} expiring soon, re-issuing", cfg.domain);
+
+        let cert_dir = paths.cert_dir();
+        let (cert_pem, key_pem) = match ca.issue_for_domain(&cfg.domain) {
+            Ok(pair) => pair,
+            Err(e) => {
+                tracing::warn!("auto-renew: failed to issue cert for {}: {}", cfg.domain, e);
+                continue;
+            }
+        };
+
+        // Write cert files
+        let _ = std::fs::write(cert_dir.join(format!("{}.crt", cfg.domain)), &cert_pem);
+        let _ = std::fs::write(cert_dir.join(format!("{}.key", cfg.domain)), &key_pem);
+
+        // Update expiry in DB
+        let new_expiry = chrono::Utc::now()
+            .checked_add_signed(chrono::Duration::days(cert::ca::CERT_VALIDITY_DAYS))
+            .map(|d| d.to_rfc3339());
+
+        let updated = db::DomainConfig {
+            cert_expiry: new_expiry,
+            ..cfg
+        };
+        if let Err(e) = db.upsert_domain(&updated, &cert_pem, &key_pem) {
+            tracing::warn!("auto-renew: failed to update DB for {}: {}", updated.domain, e);
+        } else {
+            tracing::info!("auto-renew: cert renewed for {}", updated.domain);
+        }
+    }
 }
 
 /// Launch the Tauri GUI application.

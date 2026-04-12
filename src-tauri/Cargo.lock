@@ -871,6 +871,7 @@ name = "devhost"
 version = "0.1.9"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "chrono",
  "clap",
  "comfy-table",
@@ -879,12 +880,14 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
  "tauri-plugin-process",
  "tauri-plugin-shell",
  "tauri-plugin-updater",
+ "time",
  "tokio",
  "tracing",
  "tracing-subscriber",

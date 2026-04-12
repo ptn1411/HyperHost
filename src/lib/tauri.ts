@@ -39,7 +39,7 @@ export interface NginxInfo {
 
 export interface AppSettings {
   autostart: boolean;
-  minimize_to_tray: boolean;
+  start_hidden: boolean;
 }
 
 export const api = {
@@ -93,5 +93,5 @@ export const api = {
   // App Settings
   getAppSettings: () => invoke<AppSettings>("get_app_settings"),
   setAutostart: (enabled: boolean) => invoke<void>("set_autostart", { enabled }),
-  setMinimizeToTray: (enabled: boolean) => invoke<void>("set_minimize_to_tray", { enabled }),
+  setStartHidden: (enabled: boolean) => invoke<void>("set_start_hidden", { enabled }),
 };

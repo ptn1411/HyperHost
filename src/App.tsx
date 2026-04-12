@@ -430,57 +430,64 @@ function App() {
         ) : activeTab === "settings" ? (
           <div className="max-w-lg">
             <h2 className="text-lg font-bold text-text mb-6">Cài đặt ứng dụng</h2>
-            <div className="space-y-4">
-              {/* Minimize to Tray */}
-              <div className="flex items-center justify-between p-4 rounded-xl bg-surface-2 border border-surface-3/50">
-                <div>
-                  <p className="text-sm font-semibold text-text">Ẩn xuống khay hệ thống khi đóng cửa sổ</p>
-                  <p className="text-xs text-text-muted mt-0.5">Nhấn X sẽ thu nhỏ xuống System Tray thay vì thoát hẳn</p>
+            <div className="space-y-3">
+
+              {/* Autostart */}
+              <div className="rounded-xl bg-surface-2 border border-surface-3/50 overflow-hidden">
+                <div className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-text">Khởi động cùng Windows</p>
+                    <p className="text-xs text-text-muted mt-0.5">Tự động chạy HyperHost khi đăng nhập Windows</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const next = !appSettings?.autostart;
+                      try {
+                        await api.setAutostart(next);
+                        setAppSettings((s) => s ? { ...s, autostart: next } : s);
+                      } catch (e: any) {
+                        setError(String(e));
+                      }
+                    }}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ${
+                      appSettings?.autostart ? "bg-accent" : "bg-surface-3"
+                    }`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      appSettings?.autostart ? "translate-x-6" : "translate-x-1"
+                    }`} />
+                  </button>
                 </div>
-                <button
-                  onClick={async () => {
-                    const next = !appSettings?.minimize_to_tray;
-                    await api.setMinimizeToTray(next);
-                    setAppSettings((s) => s ? { ...s, minimize_to_tray: next } : s);
-                  }}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                    appSettings?.minimize_to_tray ? "bg-accent" : "bg-surface-3"
-                  }`}>
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                    appSettings?.minimize_to_tray ? "translate-x-6" : "translate-x-1"
-                  }`} />
-                </button>
+
+                {/* Sub-option: start hidden — only shown when autostart is ON */}
+                {appSettings?.autostart && (
+                  <div className="flex items-center justify-between px-4 py-3 bg-surface-3/20 border-t border-surface-3/40">
+                    <div className="pl-3 border-l-2 border-accent/40">
+                      <p className="text-sm font-medium text-text">Chỉ chạy icon khay, không mở cửa sổ</p>
+                      <p className="text-xs text-text-muted mt-0.5">
+                        Khi Windows khởi động, HyperHost chạy ngầm — icon xuất hiện ở góc phải màn hình
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const next = !appSettings?.start_hidden;
+                        try {
+                          await api.setStartHidden(next);
+                          setAppSettings((s) => s ? { ...s, start_hidden: next } : s);
+                        } catch (e: any) {
+                          setError(String(e));
+                        }
+                      }}
+                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer ml-4 ${
+                        appSettings?.start_hidden ? "bg-accent" : "bg-surface-3"
+                      }`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        appSettings?.start_hidden ? "translate-x-6" : "translate-x-1"
+                      }`} />
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {/* Autostart — Windows only */}
-              <div className="flex items-center justify-between p-4 rounded-xl bg-surface-2 border border-surface-3/50">
-                <div>
-                  <p className="text-sm font-semibold text-text">Khởi động cùng Windows</p>
-                  <p className="text-xs text-text-muted mt-0.5">
-                    Tự động mở HyperHost khi đăng nhập Windows
-                    {appSettings !== null && !("autostart" in appSettings) && (
-                      <span className="text-warning"> • Chỉ hỗ trợ trên Windows</span>
-                    )}
-                  </p>
-                </div>
-                <button
-                  onClick={async () => {
-                    const next = !appSettings?.autostart;
-                    try {
-                      await api.setAutostart(next);
-                      setAppSettings((s) => s ? { ...s, autostart: next } : s);
-                    } catch (e: any) {
-                      setError(String(e));
-                    }
-                  }}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                    appSettings?.autostart ? "bg-accent" : "bg-surface-3"
-                  }`}>
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                    appSettings?.autostart ? "translate-x-6" : "translate-x-1"
-                  }`} />
-                </button>
-              </div>
             </div>
           </div>
         ) : (

@@ -647,13 +647,12 @@ fn rebuild_nginx(state: &AppState) -> anyhow::Result<()> {
     }
     Ok(())
 }
-
 // ── App Settings commands ──
 
 #[derive(serde::Serialize)]
 pub struct AppSettings {
     pub autostart: bool,
-    pub minimize_to_tray: bool,
+    pub start_hidden: bool,
 }
 
 #[tauri::command]
@@ -664,13 +663,14 @@ pub async fn get_app_settings(state: tauri::State<'_, AppState>) -> Result<AppSe
         #[cfg(not(target_os = "windows"))]
         { false }
     };
-    let minimize_to_tray = state
-        .minimize_to_tray
-        .load(std::sync::atomic::Ordering::Relaxed);
-    Ok(AppSettings {
-        autostart,
-        minimize_to_tray,
-    })
+    let start_hidden = state
+        .db
+        .get_setting("start_hidden")
+        .ok()
+        .flatten()
+        .map(|v| v == "true")
+        .unwrap_or(false);
+    Ok(AppSettings { autostart, start_hidden })
 }
 
 #[tauri::command]
@@ -683,29 +683,46 @@ pub async fn set_autostart(
         .set_setting("autostart", if enabled { "true" } else { "false" })
         .map_err(|e| e.to_string())?;
 
+    let start_hidden = state
+        .db
+        .get_setting("start_hidden")
+        .ok()
+        .flatten()
+        .map(|v| v == "true")
+        .unwrap_or(false);
+
     #[cfg(target_os = "windows")]
-    toggle_autostart_windows(enabled).map_err(|e| e.to_string())?;
+    toggle_autostart_windows(enabled, start_hidden).map_err(|e| e.to_string())?;
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn set_minimize_to_tray(
+pub async fn set_start_hidden(
     enabled: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     state
-        .minimize_to_tray
-        .store(enabled, std::sync::atomic::Ordering::Relaxed);
-    state
         .db
-        .set_setting("minimize_to_tray", if enabled { "true" } else { "false" })
+        .set_setting("start_hidden", if enabled { "true" } else { "false" })
         .map_err(|e| e.to_string())?;
+
+    // Re-apply registry entry with/without --minimized flag
+    let autostart = {
+        #[cfg(target_os = "windows")]
+        { is_autostart_windows() }
+        #[cfg(not(target_os = "windows"))]
+        { false }
+    };
+    if autostart {
+        #[cfg(target_os = "windows")]
+        toggle_autostart_windows(true, enabled).map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 
 #[cfg(target_os = "windows")]
-fn toggle_autostart_windows(enabled: bool) -> anyhow::Result<()> {
+fn toggle_autostart_windows(enabled: bool, start_hidden: bool) -> anyhow::Result<()> {
     use winreg::enums::{HKEY_CURRENT_USER, KEY_SET_VALUE};
     use winreg::RegKey;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
@@ -715,7 +732,12 @@ fn toggle_autostart_windows(enabled: bool) -> anyhow::Result<()> {
     )?;
     if enabled {
         let exe = std::env::current_exe()?;
-        run.set_value("HyperHost", &exe.to_string_lossy().to_string())?;
+        let value = if start_hidden {
+            format!("\"{}\" --minimized", exe.to_string_lossy())
+        } else {
+            format!("\"{}\"", exe.to_string_lossy())
+        };
+        run.set_value("HyperHost", &value)?;
     } else {
         let _ = run.delete_value("HyperHost");
     }

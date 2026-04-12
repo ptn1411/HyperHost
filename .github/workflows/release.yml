@@ -1,16 +1,37 @@
-name: "Release HyperHost (Windows)"
+name: "Release HyperHost"
 
 on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch: # Cho phép bấm nút kích hoạt thủ công trên Github
+  workflow_dispatch:
 
 jobs:
   release:
     permissions:
-      contents: write # Quyền tạo Release
-    runs-on: windows-latest
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            label: windows-x64
+
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            label: macos-x64
+
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            label: macos-arm64
+
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            label: linux-x64
+
+    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.label }})
 
     steps:
       - name: Checkout repository
@@ -20,32 +41,57 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm' # Tối ưu tốc độ tải gói
-          cache-dependency-path: 'package-lock.json' 
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-msvc
+          targets: ${{ matrix.target }}
 
       - name: Setup Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: 'src-tauri -> target'
+          key: ${{ matrix.target }}
+
+      # Linux: install system dependencies for Tauri
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            pkg-config
 
       - name: Install Frontend Dependencies
         run: npm install
 
-      - name: Build Tauri App and Draft Release
+      - name: Build hyh CLI binary
+        run: |
+          cd src-tauri
+          cargo build --bin hyh --no-default-features --release --target ${{ matrix.target }}
+          # Copy to binaries/ with Tauri naming convention
+          EXT=""
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then EXT=".exe"; fi
+          cp target/${{ matrix.target }}/release/hyh${EXT} \
+             binaries/hyh-${{ matrix.target }}${EXT}
+        shell: bash
+
+      - name: Build Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
-          # action tự động nhận cấu hình từ tauri.conf.json và build MSI, EXE
-          tagName: ${{ github.ref_name }} # Tên thẻ Release vd: v1.0.0
+          tagName: ${{ github.ref_name }}
           releaseName: 'HyperHost ${{ github.ref_name }}'
-          releaseBody: 'Phiên bản mới nhất của HyperHost. Tải xuống file setup bên dưới để cài đặt.'
+          releaseBody: 'Phiên bản mới nhất của HyperHost. Tải xuống file phù hợp với hệ điều hành bên dưới.'
           releaseDraft: false
           prerelease: false
+          args: --target ${{ matrix.target }}

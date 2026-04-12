@@ -29,6 +29,7 @@ function App() {
     Record<string, { url: string; loading: boolean }>
   >({});
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [stats, setStats] = useState<Record<string, { count: number; totalMs: number }>>({});
 
   const refresh = async () => {
     try {
@@ -47,7 +48,7 @@ function App() {
 
   useEffect(() => {
     refresh();
-    const unlisten = listen<{ domain: string; url: string }>(
+    const unlistenReady = listen<{ domain: string; url: string }>(
       "tunnel_ready",
       (event) => {
         setTunnels((prev) => ({
@@ -56,8 +57,33 @@ function App() {
         }));
       },
     );
+    const unlistenError = listen<{ domain: string; error: string }>(
+      "tunnel_error",
+      (event) => {
+        setTunnels((prev) => {
+          const next = { ...prev };
+          delete next[event.payload.domain];
+          return next;
+        });
+        setError(`Tunnel [${event.payload.domain}]: ${event.payload.error}`);
+      },
+    );
+    const unlistenTraffic = listen<{ host: string; latency: string }>(
+      "nginx_access_log",
+      (event) => {
+        const host = event.payload.host;
+        const ms = parseFloat(event.payload.latency) * 1000;
+        if (!host || isNaN(ms)) return;
+        setStats((prev) => {
+          const cur = prev[host] ?? { count: 0, totalMs: 0 };
+          return { ...prev, [host]: { count: cur.count + 1, totalMs: cur.totalMs + ms } };
+        });
+      },
+    );
     return () => {
-      unlisten.then((fn) => fn());
+      unlistenReady.then((fn) => fn());
+      unlistenError.then((fn) => fn());
+      unlistenTraffic.then((fn) => fn());
     };
   }, []);
 
@@ -180,6 +206,51 @@ function App() {
     }
   };
 
+  const handleToggleCors = async (domain: string) => {
+    try {
+      await api.toggleCors(domain);
+      await refresh();
+    } catch (err: any) {
+      setError(String(err));
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const json = await api.exportDomains();
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `hyperhost-domains-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(String(err));
+    }
+  };
+
+  const handleImport = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const imported = await api.importDomains(text);
+        await refresh();
+        if (imported.length === 0) {
+          setError("No valid domains found in import file.");
+        }
+      } catch (err: any) {
+        setError(String(err));
+      }
+    };
+    input.click();
+  };
+
   const handleShowLogs = async () => {
     try {
       const l = await api.getNginxLog(50);
@@ -263,7 +334,9 @@ function App() {
               </button>
             )}
             {caStatus?.installed && (
-              <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-surface-2 border border-surface-3 text-text-muted">
+              <div
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-surface-2 border border-surface-3 text-text-muted"
+                title={caStatus.fingerprint ? `SHA-256: ${caStatus.fingerprint}` : undefined}>
                 <span className="text-success">
                   <svg
                     className="w-4 h-4"
@@ -279,6 +352,11 @@ function App() {
                   </svg>
                 </span>
                 CA Trusted
+                {caStatus.fingerprint && (
+                  <span className="font-mono text-xs text-text-muted/60 truncate max-w-[120px]">
+                    {caStatus.fingerprint.slice(0, 11)}…
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -473,23 +551,36 @@ function App() {
                     {domains.length}
                   </span>
                 </h2>
-                <button
-                  onClick={handleShowLogs}
-                  className="text-sm font-medium text-text-muted hover:text-accent transition-colors cursor-pointer flex items-center gap-2">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  {showLogs ? "Hide Nginx Logs" : "View Nginx Logs"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleImport}
+                    className="text-sm font-medium text-text-muted hover:text-accent transition-colors cursor-pointer flex items-center gap-1.5"
+                    title="Import domains from JSON">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Import
+                  </button>
+                  <span className="text-surface-3">|</span>
+                  <button
+                    onClick={handleExport}
+                    className="text-sm font-medium text-text-muted hover:text-accent transition-colors cursor-pointer flex items-center gap-1.5"
+                    title="Export all domains to JSON">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Export
+                  </button>
+                  <span className="text-surface-3">|</span>
+                  <button
+                    onClick={handleShowLogs}
+                    className="text-sm font-medium text-text-muted hover:text-accent transition-colors cursor-pointer flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    {showLogs ? "Hide Error Log" : "Nginx Error Log"}
+                  </button>
+                </div>
               </div>
 
               {domains.length === 0 && (
@@ -571,38 +662,37 @@ function App() {
                             }`}>
                             {d.cert_valid ? (
                               <>
-                                <svg
-                                  className="w-3 h-3"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24">
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2.5}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>{" "}
-                                Valid SSL
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>{" "}Valid SSL
                               </>
                             ) : (
                               <>
-                                <svg
-                                  className="w-3 h-3"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24">
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2.5}
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>{" "}
-                                Invalid SSL
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                </svg>{" "}Invalid SSL
                               </>
                             )}
                           </span>
+                          {/* CORS Badge */}
+                          <button
+                            onClick={() => handleToggleCors(d.config.domain)}
+                            title={d.config.cors_enabled ? "CORS enabled — click to disable" : "Click to enable CORS headers"}
+                            className={`flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-md cursor-pointer transition-all ${
+                              d.config.cors_enabled
+                                ? "bg-accent/15 text-accent border border-accent/30 hover:bg-accent/25"
+                                : "bg-surface-3/30 text-text-muted/50 border border-surface-3/20 hover:text-text-muted hover:bg-surface-3/50"
+                            }`}>
+                            CORS
+                          </button>
+                          {/* Stats */}
+                          {stats[d.config.domain] && (
+                            <span className="text-[10px] font-mono text-text-muted/60 px-2 py-1 bg-surface rounded-md border border-surface-3/20">
+                              {stats[d.config.domain].count} req
+                              {" · "}
+                              {Math.round(stats[d.config.domain].totalMs / stats[d.config.domain].count)}ms
+                            </span>
+                          )}
                         </div>
                         <div className="inline-flex items-center text-sm text-text-muted mt-2 font-mono bg-surface px-2.5 py-1.5 rounded-md border border-surface-3/30">
                           <svg
@@ -784,10 +874,11 @@ function App() {
                     </svg>
                     nginx error.log
                   </h3>
-                  <div className="flex items-center gap-2 text-xs font-mono text-text-muted">
-                    <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-                    Live Tail
-                  </div>
+                  <button
+                    onClick={handleShowLogs}
+                    className="text-xs text-text-muted/60 hover:text-text-muted transition-colors cursor-pointer font-mono">
+                    ↻ Refresh
+                  </button>
                 </div>
                 <div className="bg-black/50 rounded-lg p-4 h-64 overflow-y-auto font-mono text-[11px] text-gray-300 leading-normal border border-white/5">
                   {logs.length === 0 ? (

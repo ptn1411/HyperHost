@@ -14,11 +14,13 @@ impl MkcertRunner {
             .and_then(|p| p.parent().map(|p| p.to_path_buf()))
             .unwrap_or_default();
 
+        let sidecar = crate::sidecar_name("mkcert");
+        let fallback = format!("mkcert{}", std::env::consts::EXE_SUFFIX);
         let candidates = [
-            exe_dir.join("mkcert-x86_64-pc-windows-msvc.exe"),
-            exe_dir.join("mkcert.exe"),
-            PathBuf::from("src-tauri/binaries/mkcert-x86_64-pc-windows-msvc.exe"),
-            PathBuf::from("binaries/mkcert-x86_64-pc-windows-msvc.exe"),
+            exe_dir.join(&sidecar),
+            exe_dir.join(&fallback),
+            PathBuf::from("src-tauri/binaries").join(&sidecar),
+            PathBuf::from("binaries").join(&sidecar),
         ];
 
         for candidate in &candidates {

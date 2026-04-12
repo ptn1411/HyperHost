@@ -46,7 +46,13 @@ impl NginxManager {
     }
 
     /// Zero-downtime config reload.
+    /// Validates config with `nginx -t` first to prevent downtime on bad config.
     pub fn reload(&self) -> anyhow::Result<()> {
+        // Pre-flight: validate config before applying
+        self.test_config().map_err(|e| {
+            anyhow::anyhow!("nginx config validation failed, reload aborted:\n{}", e)
+        })?;
+
         let conf_str = self.conf.to_str().unwrap().replace('\\', "/");
         let prefix_str = self.prefix.to_str().unwrap().replace('\\', "/");
 
@@ -78,9 +84,7 @@ impl NginxManager {
         if let Some(pid) = self.read_pid_file() {
             if Self::is_pid_alive(pid) {
                 tracing::warn!("nginx did not quit gracefully, force killing pid={}", pid);
-                let _ = Command::new("taskkill")
-                    .args(["/F", "/T", "/PID", &pid.to_string()])
-                    .output();
+                Self::force_kill(pid);
                 std::thread::sleep(std::time::Duration::from_millis(200));
             }
         }
@@ -175,10 +179,7 @@ impl NginxManager {
         if let Some(pid) = self.read_pid_file() {
             if Self::is_pid_alive(pid) {
                 tracing::warn!("Force killing stale nginx pid={}", pid);
-                // /T flag kills the entire process tree (master + workers)
-                let _ = Command::new("taskkill")
-                    .args(["/F", "/T", "/PID", &pid.to_string()])
-                    .output();
+                Self::force_kill(pid);
                 std::thread::sleep(std::time::Duration::from_millis(500));
             }
         }
@@ -187,17 +188,44 @@ impl NginxManager {
         let _ = std::fs::remove_file(self.pid_file());
     }
 
-    /// Check if a process with the given PID is still alive (Windows).
+    /// Check if a process with the given PID is still alive.
     fn is_pid_alive(pid: u32) -> bool {
-        Command::new("tasklist")
-            .args(["/FI", &format!("PID eq {}", pid), "/NH"])
-            .output()
-            .map(|out| {
-                let stdout = String::from_utf8_lossy(&out.stdout);
-                // tasklist prints "INFO: No tasks..." when PID doesn't exist
-                !stdout.contains("No tasks") && stdout.contains(&pid.to_string())
-            })
-            .unwrap_or(false)
+        #[cfg(target_os = "windows")]
+        {
+            Command::new("tasklist")
+                .args(["/FI", &format!("PID eq {}", pid), "/NH"])
+                .output()
+                .map(|out| {
+                    let stdout = String::from_utf8_lossy(&out.stdout);
+                    !stdout.contains("No tasks") && stdout.contains(&pid.to_string())
+                })
+                .unwrap_or(false)
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            // `kill -0 <pid>` succeeds if process exists and we have permission
+            Command::new("kill")
+                .args(["-0", &pid.to_string()])
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+        }
+    }
+
+    /// Force-kill a process by PID.
+    fn force_kill(pid: u32) {
+        #[cfg(target_os = "windows")]
+        {
+            let _ = Command::new("taskkill")
+                .args(["/F", "/T", "/PID", &pid.to_string()])
+                .output();
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = Command::new("kill")
+                .args(["-9", &pid.to_string()])
+                .output();
+        }
     }
 }
 

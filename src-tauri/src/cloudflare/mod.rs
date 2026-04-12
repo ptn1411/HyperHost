@@ -201,7 +201,27 @@ fn read_stderr_for_url(
         }
     }
 
+    // Pipe closed — nếu chưa emit tunnel_ready thì báo lỗi cho frontend
     tracing::debug!("cloudflared [{}] stderr pipe closed", domain);
+
+    let still_loading = {
+        let procs = processes.lock().unwrap();
+        procs.get(domain).map_or(false, |e| e.public_url.is_none())
+    };
+
+    if still_loading {
+        tracing::warn!("cloudflared [{}] exited without providing a URL", domain);
+        let _ = app_handle.emit(
+            "tunnel_error",
+            TunnelErrorPayload {
+                domain: domain.to_string(),
+                error: "cloudflared exited without providing a tunnel URL. Check that cloudflared is installed and you have internet access.".to_string(),
+            },
+        );
+        // Dọn entry khỏi map
+        let mut procs = processes.lock().unwrap();
+        procs.remove(domain);
+    }
 }
 
 /// Parse TryCloudflare URL từ một dòng log.

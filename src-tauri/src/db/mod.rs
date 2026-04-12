@@ -20,6 +20,7 @@ pub struct DomainConfig {
     pub domain: String,
     pub upstream: String,
     pub enabled: bool,
+    pub cors_enabled: bool,
     pub cert_expiry: Option<String>,
     pub created_at: Option<String>,
     pub advanced_config: Option<String>,
@@ -69,6 +70,7 @@ impl Database {
 
         // Auto-migrate schema for existing databases
         let _ = conn.execute("ALTER TABLE domains ADD COLUMN advanced_config TEXT", []);
+        let _ = conn.execute("ALTER TABLE domains ADD COLUMN cors_enabled INTEGER NOT NULL DEFAULT 0", []);
 
         tracing::info!("Database opened at {}", db_path.display());
         Ok(Self {
@@ -84,20 +86,22 @@ impl Database {
     ) -> anyhow::Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO domains (domain, upstream, enabled, cert_pem, key_pem, cert_expiry, advanced_config)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            "INSERT INTO domains (domain, upstream, enabled, cors_enabled, cert_pem, key_pem, cert_expiry, advanced_config)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
              ON CONFLICT(domain) DO UPDATE SET
-                upstream    = excluded.upstream,
-                enabled     = excluded.enabled,
-                cert_pem    = excluded.cert_pem,
-                key_pem     = excluded.key_pem,
-                cert_expiry = excluded.cert_expiry,
+                upstream        = excluded.upstream,
+                enabled         = excluded.enabled,
+                cors_enabled    = excluded.cors_enabled,
+                cert_pem        = excluded.cert_pem,
+                key_pem         = excluded.key_pem,
+                cert_expiry     = excluded.cert_expiry,
                 advanced_config = excluded.advanced_config,
-                updated_at  = datetime('now')",
+                updated_at      = datetime('now')",
             params![
                 cfg.domain,
                 cfg.upstream,
                 cfg.enabled as i32,
+                cfg.cors_enabled as i32,
                 cert_pem,
                 key_pem,
                 cfg.cert_expiry,
@@ -110,7 +114,7 @@ impl Database {
     pub fn list_domains(&self) -> anyhow::Result<Vec<DomainConfig>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, domain, upstream, enabled, cert_expiry, created_at, advanced_config FROM domains ORDER BY id",
+            "SELECT id, domain, upstream, enabled, cors_enabled, cert_expiry, created_at, advanced_config FROM domains ORDER BY id",
         )?;
         let rows = stmt.query_map([], |row| {
             Ok(DomainConfig {
@@ -118,9 +122,10 @@ impl Database {
                 domain: row.get(1)?,
                 upstream: row.get(2)?,
                 enabled: row.get::<_, i32>(3)? != 0,
-                cert_expiry: row.get(4)?,
-                created_at: row.get(5)?,
-                advanced_config: row.get(6)?,
+                cors_enabled: row.get::<_, i32>(4)? != 0,
+                cert_expiry: row.get(5)?,
+                created_at: row.get(6)?,
+                advanced_config: row.get(7)?,
             })
         })?;
         let mut result = Vec::new();
@@ -145,6 +150,20 @@ impl Database {
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM domains WHERE domain = ?1", params![domain])?;
         Ok(())
+    }
+
+    pub fn toggle_cors(&self, domain: &str) -> anyhow::Result<bool> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE domains SET cors_enabled = 1 - cors_enabled, updated_at = datetime('now') WHERE domain = ?1",
+            params![domain],
+        )?;
+        let new_state: bool = conn.query_row(
+            "SELECT cors_enabled FROM domains WHERE domain = ?1",
+            params![domain],
+            |row| Ok(row.get::<_, i32>(0)? != 0),
+        )?;
+        Ok(new_state)
     }
 
     pub fn toggle_domain(&self, domain: &str) -> anyhow::Result<bool> {

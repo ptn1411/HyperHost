@@ -19,6 +19,9 @@ pub fn init_state() -> anyhow::Result<AppState> {
     let db = db::Database::open(&paths.db_path())?;
     let ca = cert::ca::LocalCA::load_or_create(paths.base_dir())?;
 
+    // Auto-renew certs expiring within 30 days
+    renew_expiring_certs(&db, &ca, &paths);
+
     let nginx_exe = resolve_nginx_exe();
     let nginx = nginx::NginxManager::new(nginx_exe, paths.nginx_conf(), paths.nginx_dir());
 
@@ -32,6 +35,68 @@ pub fn init_state() -> anyhow::Result<AppState> {
         #[cfg(feature = "gui")]
         named_tunnels: cloudflare::named_tunnel::NamedTunnelManager::new(),
     })
+}
+
+/// Re-issue certs for domains expiring within RENEW_THRESHOLD_DAYS.
+fn renew_expiring_certs(
+    db: &db::Database,
+    ca: &cert::ca::LocalCA,
+    paths: &paths::AppPaths,
+) {
+    const RENEW_THRESHOLD_DAYS: i64 = 30;
+
+    let domains = match db.list_domains() {
+        Ok(d) => d,
+        Err(e) => {
+            tracing::warn!("auto-renew: failed to list domains: {}", e);
+            return;
+        }
+    };
+
+    let threshold = chrono::Utc::now()
+        + chrono::Duration::days(RENEW_THRESHOLD_DAYS);
+
+    for cfg in domains {
+        let expiring = cfg.cert_expiry.as_ref().map_or(true, |exp| {
+            chrono::DateTime::parse_from_rfc3339(exp)
+                .map(|d| d < threshold)
+                .unwrap_or(true)
+        });
+
+        if !expiring {
+            continue;
+        }
+
+        tracing::info!("auto-renew: cert for {} expiring soon, re-issuing", cfg.domain);
+
+        let cert_dir = paths.cert_dir();
+        let (cert_pem, key_pem) = match ca.issue_for_domain(&cfg.domain) {
+            Ok(pair) => pair,
+            Err(e) => {
+                tracing::warn!("auto-renew: failed to issue cert for {}: {}", cfg.domain, e);
+                continue;
+            }
+        };
+
+        // Write cert files
+        let _ = std::fs::write(cert_dir.join(format!("{}.crt", cfg.domain)), &cert_pem);
+        let _ = std::fs::write(cert_dir.join(format!("{}.key", cfg.domain)), &key_pem);
+
+        // Update expiry in DB
+        let new_expiry = chrono::Utc::now()
+            .checked_add_signed(chrono::Duration::days(cert::ca::CERT_VALIDITY_DAYS))
+            .map(|d| d.to_rfc3339());
+
+        let updated = db::DomainConfig {
+            cert_expiry: new_expiry,
+            ..cfg
+        };
+        if let Err(e) = db.upsert_domain(&updated, &cert_pem, &key_pem) {
+            tracing::warn!("auto-renew: failed to update DB for {}: {}", updated.domain, e);
+        } else {
+            tracing::info!("auto-renew: cert renewed for {}", updated.domain);
+        }
+    }
 }
 
 /// Launch the Tauri GUI application.
@@ -140,6 +205,9 @@ pub fn run() {
             ipc::commands::stop_named_tunnel,
             ipc::commands::named_tunnel_running,
             ipc::commands::remove_named_tunnel,
+            ipc::commands::toggle_cors,
+            ipc::commands::export_domains,
+            ipc::commands::import_domains,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -153,52 +221,131 @@ pub fn run() {
         });
 }
 
-pub fn resolve_nginx_exe() -> std::path::PathBuf {
-    let exe_dir = std::env::current_exe()
+/// Build the platform-specific sidecar binary filename.
+/// Tauri names external binaries as `{name}-{target_triple}{exe_suffix}`.
+pub fn sidecar_name(base: &str) -> String {
+    let triple = if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+        "x86_64-pc-windows-msvc"
+    } else if cfg!(all(target_os = "windows", target_arch = "aarch64")) {
+        "aarch64-pc-windows-msvc"
+    } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+        "x86_64-apple-darwin"
+    } else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+        "aarch64-apple-darwin"
+    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+        "x86_64-unknown-linux-gnu"
+    } else if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+        "aarch64-unknown-linux-gnu"
+    } else {
+        ""
+    };
+    let ext = std::env::consts::EXE_SUFFIX;
+    if triple.is_empty() {
+        format!("{}{}", base, ext)
+    } else {
+        format!("{}-{}{}", base, triple, ext)
+    }
+}
+
+fn exe_dir() -> std::path::PathBuf {
+    std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_default();
+        .unwrap_or_default()
+}
 
-    let candidates = [
-        exe_dir.join("nginx-x86_64-pc-windows-msvc.exe"),
-        exe_dir.join("nginx.exe"),
-        std::path::PathBuf::from("src-tauri/binaries/nginx-x86_64-pc-windows-msvc.exe"),
-        std::path::PathBuf::from("binaries/nginx-x86_64-pc-windows-msvc.exe"),
-    ];
+pub fn resolve_nginx_exe() -> std::path::PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        // Windows: use bundled sidecar binary
+        let dir = exe_dir();
+        let sidecar = sidecar_name("nginx");
+        let fallback = format!("nginx{}", std::env::consts::EXE_SUFFIX);
 
-    for candidate in &candidates {
-        if candidate.exists() {
-            tracing::info!("Found nginx at: {}", candidate.display());
-            return candidate.clone();
+        let candidates = [
+            dir.join(&sidecar),
+            dir.join(&fallback),
+            std::path::PathBuf::from("src-tauri/binaries").join(&sidecar),
+            std::path::PathBuf::from("binaries").join(&sidecar),
+        ];
+
+        for candidate in &candidates {
+            if candidate.exists() {
+                tracing::info!("Found nginx at: {}", candidate.display());
+                return candidate.clone();
+            }
         }
+
+        tracing::warn!("nginx sidecar not found, falling back to PATH");
+        std::path::PathBuf::from(fallback)
     }
 
-    tracing::warn!("nginx not found in expected locations, falling back to 'nginx' in PATH");
-    std::path::PathBuf::from("nginx.exe")
+    #[cfg(target_os = "macos")]
+    {
+        // macOS: use Homebrew nginx (brew install nginx)
+        let candidates = [
+            "/opt/homebrew/bin/nginx",  // Apple Silicon (ARM64)
+            "/usr/local/bin/nginx",     // Intel (x86_64)
+            "/opt/local/bin/nginx",     // MacPorts
+        ];
+
+        for path in &candidates {
+            let p = std::path::PathBuf::from(path);
+            if p.exists() {
+                tracing::info!("Found nginx at: {}", p.display());
+                return p;
+            }
+        }
+
+        tracing::warn!("nginx not found in Homebrew paths. Run: brew install nginx");
+        std::path::PathBuf::from("nginx")
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Linux: use system nginx (apt/yum install nginx)
+        let candidates = [
+            "/usr/sbin/nginx",       // Debian/Ubuntu
+            "/usr/bin/nginx",        // Some distros
+            "/usr/local/sbin/nginx", // Custom install
+            "/usr/local/bin/nginx",  // Custom install
+        ];
+
+        for path in &candidates {
+            let p = std::path::PathBuf::from(path);
+            if p.exists() {
+                tracing::info!("Found nginx at: {}", p.display());
+                return p;
+            }
+        }
+
+        tracing::warn!("nginx not found. Run: sudo apt install nginx (or yum/pacman)");
+        std::path::PathBuf::from("nginx")
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        std::path::PathBuf::from("nginx")
+    }
 }
 
 pub fn resolve_cloudflared_exe() -> std::path::PathBuf {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_default();
+    let dir = exe_dir();
+    let sidecar = sidecar_name("cloudflared");
+    let fallback = format!("cloudflared{}", std::env::consts::EXE_SUFFIX);
 
-    let dev_binaries = exe_dir
+    let dev_binaries = dir
         .parent()
         .and_then(|p| p.parent())
         .map(|p| p.join("binaries"));
 
-    let mut candidates: Vec<std::path::PathBuf> =
-        vec![exe_dir.join("cloudflared-x86_64-pc-windows-msvc.exe")];
-
+    let mut candidates = vec![dir.join(&sidecar)];
     if let Some(dev_dir) = dev_binaries {
-        candidates.push(dev_dir.join("cloudflared-x86_64-pc-windows-msvc.exe"));
+        candidates.push(dev_dir.join(&sidecar));
     }
 
-    // 👇 thêm vào đây
     tracing::info!(
-        "resolve_cloudflared_exe: exe_dir={} candidates={:?}",
-        exe_dir.display(),
+        "resolve_cloudflared_exe: candidates={:?}",
         candidates
             .iter()
             .map(|p| format!("{} (exists={})", p.display(), p.exists()))
@@ -213,5 +360,5 @@ pub fn resolve_cloudflared_exe() -> std::path::PathBuf {
     }
 
     tracing::warn!("cloudflared not found, falling back to PATH");
-    std::path::PathBuf::from("cloudflared.exe")
+    std::path::PathBuf::from(fallback)
 }

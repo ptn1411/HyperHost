@@ -16,6 +16,7 @@ export interface DomainConfig {
   domain: string;
   upstream: string;
   enabled: boolean;
+  cors_enabled: boolean;
   cert_expiry?: string;
   created_at?: string;
   advanced_config?: string;
@@ -58,6 +59,7 @@ export const api = {
   stopTunnel: (domain: string) =>
     invoke<void>("stop_tunnel", { domain }),
 
+
   // Named Tunnel (fixed domain via Cloudflare)
   cloudflareLogin: () => invoke<void>("cloudflare_login"),
   cloudflareLoginStatus: () => invoke<boolean>("cloudflare_login_status"),
@@ -74,4 +76,12 @@ export const api = {
     invoke<boolean>("named_tunnel_running", { tunnelName }),
   removeNamedTunnel: (tunnelName: string) =>
     invoke<void>("remove_named_tunnel", { tunnelName }),
+
+  // CORS / Export / Import
+  toggleCors: (domain: string) =>
+    invoke<boolean>("toggle_cors", { domain }),
+  exportDomains: () =>
+    invoke<string>("export_domains"),
+  importDomains: (json: string) =>
+    invoke<DomainStatus[]>("import_domains", { json }),
 };

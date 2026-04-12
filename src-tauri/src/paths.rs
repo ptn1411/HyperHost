@@ -1,15 +1,16 @@
 use std::path::PathBuf;
 
-/// All HyperHost data lives under `%LOCALAPPDATA%\HyperHost\`.
-/// Existing installs that already have a `DevHost\` folder are used as-is
-/// for backward compatibility — no data migration needed.
+/// All HyperHost data lives under a platform-appropriate directory:
+/// - Windows : `%LOCALAPPDATA%\HyperHost`  (falls back to `DevHost` for existing installs)
+/// - macOS   : `~/Library/Application Support/HyperHost`
+/// - Linux   : `~/.config/hyperhost`
 pub struct AppPaths {
     base: PathBuf,
 }
 
 impl AppPaths {
     pub fn new() -> Self {
-        let base = resolve_base_dir().unwrap_or_else(|| PathBuf::from("."));
+        let base = resolve_base_dir().unwrap_or_else(|| PathBuf::from(".hyperhost"));
         Self { base }
     }
 
@@ -17,7 +18,7 @@ impl AppPaths {
         &self.base
     }
     pub fn db_path(&self) -> PathBuf {
-        // Support legacy devhost.db for existing installations
+        // Support legacy devhost.db for existing Windows installations
         let legacy = self.base.join("devhost.db");
         if legacy.exists() {
             return legacy;
@@ -77,17 +78,33 @@ impl AppPaths {
     }
 }
 
-/// Resolve the base data directory.
-/// - If `%LOCALAPPDATA%\DevHost` already exists → use it (backward compat for existing installs)
-/// - Otherwise → use `%LOCALAPPDATA%\HyperHost` (new installs)
 fn resolve_base_dir() -> Option<PathBuf> {
-    let local_app_data = std::env::var("LOCALAPPDATA").ok().map(PathBuf::from)?;
-
-    let legacy = local_app_data.join("DevHost");
-    if legacy.exists() {
-        tracing::info!("Using legacy DevHost data dir: {}", legacy.display());
-        return Some(legacy);
+    #[cfg(target_os = "windows")]
+    {
+        let base = dirs::data_local_dir()?;
+        // Backward compat: use DevHost/ if it already exists (existing installs)
+        let legacy = base.join("DevHost");
+        if legacy.exists() {
+            tracing::info!("Using legacy DevHost data dir: {}", legacy.display());
+            return Some(legacy);
+        }
+        Some(base.join("HyperHost"))
     }
 
-    Some(local_app_data.join("HyperHost"))
+    #[cfg(target_os = "macos")]
+    {
+        // ~/Library/Application Support/HyperHost
+        Some(dirs::data_local_dir()?.join("HyperHost"))
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // ~/.config/hyperhost
+        Some(dirs::config_dir()?.join("hyperhost"))
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        Some(PathBuf::from(".hyperhost"))
+    }
 }

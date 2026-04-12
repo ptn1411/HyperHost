@@ -10,4 +10,6 @@ pub struct AppState {
     pub nginx: NginxManager,
     #[cfg(feature = "gui")]
     pub cloudflared: crate::cloudflare::CloudflaredManager,
+    #[cfg(feature = "gui")]
+    pub named_tunnels: crate::cloudflare::named_tunnel::NamedTunnelManager,
 }

@@ -1,5 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 
+export interface NamedTunnelConfig {
+  id?: number;
+  tunnel_name: string;
+  tunnel_id?: string;
+  credentials_path?: string;
+  hostname: string;
+  upstream: string;
+  enabled: boolean;
+  created_at?: string;
+}
+
 export interface DomainConfig {
   id?: number;
   domain: string;
@@ -46,4 +57,21 @@ export const api = {
     invoke<void>("start_tunnel", { domain }),
   stopTunnel: (domain: string) =>
     invoke<void>("stop_tunnel", { domain }),
+
+  // Named Tunnel (fixed domain via Cloudflare)
+  cloudflareLogin: () => invoke<void>("cloudflare_login"),
+  cloudflareLoginStatus: () => invoke<boolean>("cloudflare_login_status"),
+  listNamedTunnels: () => invoke<NamedTunnelConfig[]>("list_named_tunnels"),
+  addNamedTunnel: (tunnelName: string, hostname: string, upstream: string) =>
+    invoke<NamedTunnelConfig>("add_named_tunnel", { tunnelName, hostname, upstream }),
+  provisionNamedTunnel: (tunnelName: string) =>
+    invoke<void>("provision_named_tunnel", { tunnelName }),
+  startNamedTunnel: (tunnelName: string) =>
+    invoke<void>("start_named_tunnel", { tunnelName }),
+  stopNamedTunnel: (tunnelName: string) =>
+    invoke<void>("stop_named_tunnel", { tunnelName }),
+  namedTunnelRunning: (tunnelName: string) =>
+    invoke<boolean>("named_tunnel_running", { tunnelName }),
+  removeNamedTunnel: (tunnelName: string) =>
+    invoke<void>("remove_named_tunnel", { tunnelName }),
 };

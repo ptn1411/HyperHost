@@ -289,7 +289,7 @@ function App() {
             </h1>
             <p className="text-text-muted mt-2 text-sm">
               Local HTTPS domains for development •{" "}
-              <span className="font-mono text-xs">v0.1.9</span>
+              <span className="font-mono text-xs">v0.2.7</span>
             </p>
           </div>
           <div className="flex items-center gap-3">

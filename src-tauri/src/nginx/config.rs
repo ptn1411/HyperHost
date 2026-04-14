@@ -17,6 +17,7 @@ http {{
     sendfile      on;
     keepalive_timeout 65;
     server_tokens off;
+    server_names_hash_bucket_size 128;
 
     # HTTP → redirect all to HTTPS
     log_format json_log escape=json '{{"time":"$time_iso8601","host":"$host","method":"$request_method","uri":"$request_uri","status":$status,"latency":"$request_time","req_body":"$request_body"}}';

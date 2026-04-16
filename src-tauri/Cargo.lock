@@ -1838,7 +1838,7 @@ dependencies = [
 
 [[package]]
 name = "hyperhost"
-version = "0.2.7"
+version = "0.2.9"
 dependencies = [
  "anyhow",
  "base64 0.22.1",

@@ -71,26 +71,12 @@ impl LocalCA {
         dn.push(DnType::CommonName, domain);
         params.distinguished_name = dn;
 
-        // Re-create the CA cert from stored PEM for signing
-        let ca_key_pair = &self.key_pair;
-
-        // Build a temporary CA params with exact same DN to get a Certificate for signing.
-        // AKI is derived from the ca_key_pair public key, which perfectly matches the trust store.
-        let mut ca_params = CertificateParams::default();
-        ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-        ca_params.key_usages = vec![
-            rcgen::KeyUsagePurpose::KeyCertSign,
-            rcgen::KeyUsagePurpose::CrlSign,
-            rcgen::KeyUsagePurpose::DigitalSignature,
-        ];
-        let mut ca_dn = DistinguishedName::new();
-        ca_dn.push(DnType::CommonName, "HyperHost Local CA");
-        ca_dn.push(DnType::OrganizationName, "HyperHost");
-        ca_params.distinguished_name = ca_dn;
-        let ca_cert = ca_params.self_signed(ca_key_pair)?;
+        // Parse the actual CA cert from PEM so the issuer DN matches exactly
+        let ca_params = CertificateParams::from_ca_cert_pem(&self.cert_pem)?;
+        let ca_cert = ca_params.self_signed(&self.key_pair)?;
 
         let leaf_key = KeyPair::generate()?;
-        let leaf_cert = params.signed_by(&leaf_key, &ca_cert, ca_key_pair)?;
+        let leaf_cert = params.signed_by(&leaf_key, &ca_cert, &self.key_pair)?;
 
         tracing::info!("Issued certificate for {}", domain);
         Ok((leaf_cert.pem(), leaf_key.serialize_pem()))

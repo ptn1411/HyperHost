@@ -31,6 +31,7 @@ function App() {
   >({});
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [stats, setStats] = useState<Record<string, { count: number; totalMs: number }>>({});
+  const [caWarningDismissed, setCaWarningDismissed] = useState(false);
 
   const refresh = async () => {
     try {
@@ -363,6 +364,35 @@ function App() {
             )}
           </div>
         </header>
+
+        {/* CA Not Trusted Banner */}
+        {caStatus && !caStatus.installed && !caWarningDismissed && (
+          <div className="mb-6 p-4 rounded-xl bg-warning/10 border border-warning/30 text-warning text-sm flex items-start gap-3 shadow-sm">
+            <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <div className="flex-1">
+              <p className="font-semibold">CA Certificate chưa được trust</p>
+              <p className="text-warning/80 mt-0.5 text-xs">
+                Trình duyệt sẽ hiển thị khóa đỏ cho các domain HTTPS. Cài CA certificate để fix.
+              </p>
+            </div>
+            <button
+              onClick={handleInstallCa}
+              disabled={loading}
+              className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-warning/20 hover:bg-warning/30 border border-warning/40 transition-colors cursor-pointer disabled:opacity-50">
+              Cài ngay
+            </button>
+            <button
+              onClick={() => setCaWarningDismissed(true)}
+              className="text-warning hover:text-warning/70 cursor-pointer p-1 rounded-md hover:bg-warning/20 transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex items-center gap-1 mb-8 p-1 bg-surface-2 rounded-xl border border-surface-3/50 w-fit">

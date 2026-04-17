@@ -160,6 +160,8 @@ fn cmd_add(
         cert_expiry: expiry,
         created_at: None,
         advanced_config: None,
+        project_path: None,
+        run_command: None,
     };
     state.db.upsert_domain(&cfg, &cert_pem, &key_pem)?;
     println!("📦 Saved to database");

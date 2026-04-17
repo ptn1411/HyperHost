@@ -17,6 +17,8 @@ pub async fn add_domain(
     domain: String,
     upstream: String,
     advanced_config: Option<String>,
+    project_path: Option<String>,
+    run_command: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<DomainStatus, String> {
     // Validate
@@ -83,6 +85,8 @@ pub async fn add_domain(
         cert_expiry: expiry.clone(),
         created_at: None,
         advanced_config,
+        project_path,
+        run_command,
     };
     state
         .db
@@ -109,6 +113,8 @@ pub async fn edit_domain(
     domain: String,
     upstream: String,
     advanced_config: Option<String>,
+    project_path: Option<String>,
+    run_command: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<DomainStatus, String> {
     // Validate new values
@@ -161,15 +167,10 @@ pub async fn edit_domain(
         .checked_add_signed(chrono::Duration::days(crate::cert::ca::CERT_VALIDITY_DAYS))
         .map(|d| d.to_rfc3339());
 
-    // Preserve cors_enabled from existing domain if renaming
-    let cors_enabled = if old_domain != domain {
-        false
-    } else {
-        state.db.list_domains().ok()
-            .and_then(|ds| ds.into_iter().find(|d| d.domain == domain))
-            .map(|d| d.cors_enabled)
-            .unwrap_or(false)
-    };
+    // Preserve cors_enabled from existing row (it has its own toggle on the card, not in the edit form)
+    let existing = state.db.list_domains().ok()
+        .and_then(|ds| ds.into_iter().find(|d| d.domain == old_domain));
+    let cors_enabled = existing.as_ref().map(|d| d.cors_enabled).unwrap_or(false);
 
     let cfg = DomainConfig {
         id: None,
@@ -180,6 +181,8 @@ pub async fn edit_domain(
         cert_expiry: expiry.clone(),
         created_at: None,
         advanced_config,
+        project_path,
+        run_command,
     };
     state.db.upsert_domain(&cfg, &cert_pem, &key_pem).map_err(|e| e.to_string())?;
 
@@ -742,6 +745,181 @@ fn toggle_autostart_windows(enabled: bool, start_hidden: bool) -> anyhow::Result
         let _ = run.delete_value("HyperHost");
     }
     Ok(())
+}
+
+// ── Detection / Quick Start commands ──
+
+#[derive(Debug, serde::Serialize)]
+pub struct PortInfo {
+    pub port: u16,
+    pub guess: Option<String>,
+}
+
+#[tauri::command]
+pub async fn scan_ports() -> Result<Vec<PortInfo>, String> {
+    let ports = crate::detect::ports::scan_listening_ports().await;
+    Ok(ports
+        .into_iter()
+        .map(|p| PortInfo {
+            port: p,
+            guess: crate::detect::ports::guess_framework(p).map(String::from),
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub async fn scan_projects(
+    root: String,
+    depth: Option<usize>,
+) -> Result<Vec<crate::detect::projects::ProjectInfo>, String> {
+    let path = std::path::PathBuf::from(&root);
+    if !path.exists() {
+        return Err(format!("Đường dẫn không tồn tại: {}", root));
+    }
+    if !path.is_dir() {
+        return Err(format!("Không phải thư mục: {}", root));
+    }
+    let depth = depth.unwrap_or(3).min(6);
+    let result = tokio::task::spawn_blocking(move || {
+        crate::detect::projects::scan_projects(&path, depth)
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn list_templates() -> Result<Vec<crate::detect::templates::Template>, String> {
+    Ok(crate::detect::templates::all())
+}
+
+#[tauri::command]
+pub async fn get_home_dir() -> Result<String, String> {
+    dirs::home_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .ok_or_else(|| "Cannot locate home directory".into())
+}
+
+#[tauri::command]
+pub async fn open_folder(path: String) -> Result<(), String> {
+    let p = std::path::PathBuf::from(&path);
+    if !p.exists() {
+        return Err(format!("Đường dẫn không tồn tại: {}", path));
+    }
+    open_folder_impl(&path).map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "windows")]
+fn open_folder_impl(path: &str) -> std::io::Result<()> {
+    use std::process::Command;
+    Command::new("explorer").arg(path).spawn().map(|_| ())
+}
+
+#[cfg(target_os = "macos")]
+fn open_folder_impl(path: &str) -> std::io::Result<()> {
+    use std::process::Command;
+    Command::new("open").arg(path).spawn().map(|_| ())
+}
+
+#[cfg(target_os = "linux")]
+fn open_folder_impl(path: &str) -> std::io::Result<()> {
+    use std::process::Command;
+    Command::new("xdg-open").arg(path).spawn().map(|_| ())
+}
+
+#[tauri::command]
+pub async fn open_terminal(path: String, command: Option<String>) -> Result<(), String> {
+    let p = std::path::PathBuf::from(&path);
+    if !p.exists() {
+        return Err(format!("Đường dẫn không tồn tại: {}", path));
+    }
+    if !p.is_dir() {
+        return Err(format!("Không phải thư mục: {}", path));
+    }
+    open_terminal_impl(&path, command.as_deref()).map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "windows")]
+fn open_terminal_impl(path: &str, command: Option<&str>) -> std::io::Result<()> {
+    use std::process::Command;
+
+    // Try Windows Terminal (wt) first
+    {
+        let mut c = Command::new("wt");
+        c.args(["-d", path]);
+        if let Some(cmd) = command {
+            c.args(["powershell", "-NoExit", "-Command", cmd]);
+        }
+        if c.spawn().is_ok() {
+            return Ok(());
+        }
+    }
+
+    // Fallback: launch powershell in a new console window via `cmd /c start`
+    let mut c = Command::new("cmd");
+    c.args(["/c", "start", "", "powershell", "-NoExit", "-WorkingDirectory", path]);
+    if let Some(cmd) = command {
+        c.args(["-Command", cmd]);
+    }
+    c.spawn().map(|_| ())
+}
+
+#[cfg(target_os = "macos")]
+fn open_terminal_impl(path: &str, command: Option<&str>) -> std::io::Result<()> {
+    use std::process::Command;
+    let esc_path = path.replace('\\', "\\\\").replace('"', "\\\"");
+    let inner = match command {
+        Some(cmd) => {
+            let esc_cmd = cmd.replace('\\', "\\\\").replace('"', "\\\"");
+            format!("cd \\\"{}\\\" && {}", esc_path, esc_cmd)
+        }
+        None => format!("cd \\\"{}\\\"", esc_path),
+    };
+    let script = format!("tell application \"Terminal\" to do script \"{}\"", inner);
+    Command::new("osascript")
+        .args([
+            "-e",
+            &script,
+            "-e",
+            "tell application \"Terminal\" to activate",
+        ])
+        .spawn()
+        .map(|_| ())
+}
+
+#[cfg(target_os = "linux")]
+fn open_terminal_impl(path: &str, command: Option<&str>) -> std::io::Result<()> {
+    use std::process::Command;
+
+    let terminals: &[(&str, &str)] = &[
+        ("gnome-terminal", "--working-directory"),
+        ("konsole", "--workdir"),
+        ("xfce4-terminal", "--working-directory"),
+        ("mate-terminal", "--working-directory"),
+        ("terminator", "--working-directory"),
+        ("tilix", "--working-directory"),
+        ("alacritty", "--working-directory"),
+        ("kitty", "--directory"),
+    ];
+
+    for (exe, cwd_flag) in terminals {
+        let mut c = Command::new(exe);
+        c.arg(format!("{}={}", cwd_flag, path));
+        if let Some(cmd) = command {
+            c.arg("-e").arg("bash").arg("-c").arg(format!("{} ; exec bash", cmd));
+        }
+        if c.spawn().is_ok() {
+            return Ok(());
+        }
+    }
+
+    let mut c = Command::new("xterm");
+    let inner = match command {
+        Some(cmd) => format!("cd \"{}\" && {} ; exec bash", path, cmd),
+        None => format!("cd \"{}\" ; exec bash", path),
+    };
+    c.args(["-e", "bash", "-c"]).arg(inner);
+    c.spawn().map(|_| ())
 }
 
 #[cfg(target_os = "windows")]

@@ -2,6 +2,7 @@ pub mod cert;
 #[cfg(feature = "gui")]
 pub mod cloudflare;
 pub mod db;
+pub mod detect;
 pub mod dns;
 #[cfg(feature = "gui")]
 pub mod ipc;
@@ -217,6 +218,12 @@ pub fn run() {
             ipc::commands::get_app_settings,
             ipc::commands::set_autostart,
             ipc::commands::set_start_hidden,
+            ipc::commands::scan_ports,
+            ipc::commands::scan_projects,
+            ipc::commands::list_templates,
+            ipc::commands::get_home_dir,
+            ipc::commands::open_terminal,
+            ipc::commands::open_folder,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

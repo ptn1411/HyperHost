@@ -20,6 +20,8 @@ export interface DomainConfig {
   cert_expiry?: string;
   created_at?: string;
   advanced_config?: string;
+  project_path?: string;
+  run_command?: string;
 }
 
 export interface DomainStatus {
@@ -42,12 +44,35 @@ export interface AppSettings {
   start_hidden: boolean;
 }
 
+export interface Template {
+  id: string;
+  name: string;
+  category: string;
+  default_upstream: string;
+  description: string;
+  advanced_config: string | null;
+}
+
+export interface PortInfo {
+  port: number;
+  guess: string | null;
+}
+
+export interface ProjectInfo {
+  path: string;
+  name: string;
+  kind: string;
+  suggested_port: number;
+  suggested_domain: string;
+  suggested_command: string | null;
+}
+
 export const api = {
   listDomains: () => invoke<DomainStatus[]>("list_domains"),
-  addDomain: (domain: string, upstream: string, advancedConfig?: string) =>
-    invoke<DomainStatus>("add_domain", { domain, upstream, advancedConfig }),
-  editDomain: (oldDomain: string, domain: string, upstream: string, advancedConfig?: string) =>
-    invoke<DomainStatus>("edit_domain", { oldDomain, domain, upstream, advancedConfig }),
+  addDomain: (domain: string, upstream: string, advancedConfig?: string, projectPath?: string, runCommand?: string) =>
+    invoke<DomainStatus>("add_domain", { domain, upstream, advancedConfig, projectPath, runCommand }),
+  editDomain: (oldDomain: string, domain: string, upstream: string, advancedConfig?: string, projectPath?: string, runCommand?: string) =>
+    invoke<DomainStatus>("edit_domain", { oldDomain, domain, upstream, advancedConfig, projectPath, runCommand }),
   removeDomain: (domain: string) =>
     invoke<void>("remove_domain", { domain }),
   toggleDomain: (domain: string) =>
@@ -94,4 +119,15 @@ export const api = {
   getAppSettings: () => invoke<AppSettings>("get_app_settings"),
   setAutostart: (enabled: boolean) => invoke<void>("set_autostart", { enabled }),
   setStartHidden: (enabled: boolean) => invoke<void>("set_start_hidden", { enabled }),
+
+  // Quick Start (templates / ports / projects)
+  listTemplates: () => invoke<Template[]>("list_templates"),
+  scanPorts: () => invoke<PortInfo[]>("scan_ports"),
+  scanProjects: (root: string, depth?: number) =>
+    invoke<ProjectInfo[]>("scan_projects", { root, depth }),
+  getHomeDir: () => invoke<string>("get_home_dir"),
+  openTerminal: (path: string, command?: string) =>
+    invoke<void>("open_terminal", { path, command }),
+  openFolder: (path: string) =>
+    invoke<void>("open_folder", { path }),
 };

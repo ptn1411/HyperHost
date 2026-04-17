@@ -2,6 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { NamedTunnelPanel } from "./components/NamedTunnelPanel";
 import { NginxEditorMode } from "./components/NginxEditorMode";
+import { QuickStartPanel, QuickStartSelection } from "./components/QuickStartPanel";
 import { TrafficInspector } from "./components/TrafficInspector";
 import { UpdateDialog } from "./components/UpdateDialog";
 import { api, AppSettings, CaStatus, DomainStatus, NginxInfo } from "./lib/tauri";
@@ -19,6 +20,8 @@ function App() {
     domain: string;
     upstream: string;
     advancedConfig: string;
+    projectPath: string;
+    runCommand: string;
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +97,11 @@ function App() {
     parsedDomain: string,
     parsedUpstream: string,
     parsedAdvanced: string,
+    projectPath?: string,
+    runCommand?: string,
   ) => {
+    const pp = projectPath?.trim() ? projectPath.trim() : undefined;
+    const rc = runCommand?.trim() ? runCommand.trim() : undefined;
     setLoading(true);
     setError(null);
     try {
@@ -105,6 +112,8 @@ function App() {
           parsedDomain.trim(),
           parsedUpstream.trim(),
           parsedAdvanced,
+          pp,
+          rc,
         );
       } else {
         // Add mode
@@ -112,6 +121,8 @@ function App() {
           parsedDomain.trim(),
           parsedUpstream.trim(),
           parsedAdvanced,
+          pp,
+          rc,
         );
       }
       setEditorMode("hidden");
@@ -132,11 +143,68 @@ function App() {
     await handleSaveDomain(domain, upstream, "");
   };
 
+  const handleQuickStartPick = async (sel: QuickStartSelection) => {
+    if (sel.openEditor) {
+      setEditingData({
+        domain: sel.domain,
+        upstream: sel.upstream,
+        advancedConfig: sel.advancedConfig,
+        projectPath: sel.projectPath ?? "",
+        runCommand: sel.runCommand ?? "",
+      });
+      setEditorMode("add");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    // Project pick: auto-create the domain so the project_path gets persisted
+    if (sel.projectPath && sel.domain) {
+      setLoading(true);
+      setError(null);
+      try {
+        await api.addDomain(
+          sel.domain.trim(),
+          sel.upstream.trim(),
+          undefined,
+          sel.projectPath,
+          sel.runCommand,
+        );
+        await refresh();
+      } catch (err: any) {
+        setError(String(err));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (sel.domain) setDomain(sel.domain);
+    setUpstream(sel.upstream);
+  };
+
+  const handleOpenProjectFolder = async (path: string) => {
+    try {
+      await api.openFolder(path);
+    } catch (err: any) {
+      setError(String(err));
+    }
+  };
+
+  const handleOpenProjectTerminal = async (path: string, command?: string) => {
+    try {
+      await api.openTerminal(path, command);
+    } catch (err: any) {
+      setError(String(err));
+    }
+  };
+
   const handleEdit = (d: DomainStatus) => {
     setEditingData({
       domain: d.config.domain,
       upstream: d.config.upstream,
       advancedConfig: d.config.advanced_config || "",
+      projectPath: d.config.project_path || "",
+      runCommand: d.config.run_command || "",
     });
     setEditorMode("edit");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -526,27 +594,26 @@ function App() {
               <NginxEditorMode
                 isEditing={editorMode === "edit"}
                 initialDomain={
-                  editorMode === "edit"
-                    ? editingData?.domain
-                    : editorMode === "add"
-                      ? domain
-                      : ""
+                  editingData?.domain ??
+                  (editorMode === "add" ? domain : "")
                 }
                 initialUpstream={
-                  editorMode === "edit"
-                    ? editingData?.upstream
-                    : editorMode === "add"
-                      ? upstream
-                      : "http://127.0.0.1:3000"
+                  editingData?.upstream ??
+                  (editorMode === "add" ? upstream : "http://127.0.0.1:3000")
                 }
-                initialAdvancedConfig={
-                  editorMode === "edit" ? editingData?.advancedConfig : ""
-                }
+                initialAdvancedConfig={editingData?.advancedConfig ?? ""}
+                initialProjectPath={editingData?.projectPath ?? ""}
+                initialRunCommand={editingData?.runCommand ?? ""}
                 loading={loading}
                 onSave={handleSaveDomain}
-                onCancel={() => setEditorMode("hidden")}
+                onCancel={() => {
+                  setEditorMode("hidden");
+                  setEditingData(null);
+                }}
               />
             ) : (
+              <>
+              <QuickStartPanel onPick={handleQuickStartPick} />
               <form
                 onSubmit={handleQuickAdd}
                 className="mb-10 p-6 rounded-xl bg-surface-2 shadow-md border border-surface-3/30 transition-all duration-200">
@@ -640,6 +707,7 @@ function App() {
                   </div>
                 </div>
               </form>
+              </>
             )}
 
             {/* Domain List */}
@@ -794,20 +862,56 @@ function App() {
                             </span>
                           )}
                         </div>
-                        <div className="inline-flex items-center text-sm text-text-muted mt-2 font-mono bg-surface px-2.5 py-1.5 rounded-md border border-surface-3/30">
-                          <svg
-                            className="w-3.5 h-3.5 mr-2 text-accent/70"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M13 5l7 7-7 7M5 5l7 7-7 7"
-                            />
-                          </svg>
-                          {d.config.upstream}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <div className="inline-flex items-center text-sm text-text-muted font-mono bg-surface px-2.5 py-1.5 rounded-md border border-surface-3/30">
+                            <svg
+                              className="w-3.5 h-3.5 mr-2 text-accent/70"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                              />
+                            </svg>
+                            {d.config.upstream}
+                          </div>
+                          {d.config.project_path && (
+                            <>
+                              <button
+                                onClick={() => handleOpenProjectFolder(d.config.project_path!)}
+                                title={`Mở thư mục: ${d.config.project_path}`}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold text-text-muted bg-surface border border-surface-3/40 hover:text-accent hover:border-accent/40 hover:bg-accent/5 transition-all cursor-pointer">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                </svg>
+                                Folder
+                              </button>
+                              <button
+                                onClick={() => handleOpenProjectTerminal(d.config.project_path!)}
+                                title="Mở terminal tại thư mục dự án"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold text-text-muted bg-surface border border-surface-3/40 hover:text-accent hover:border-accent/40 hover:bg-accent/5 transition-all cursor-pointer">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                Terminal
+                              </button>
+                              {d.config.run_command && (
+                                <button
+                                  onClick={() => handleOpenProjectTerminal(d.config.project_path!, d.config.run_command!)}
+                                  title={`Chạy: ${d.config.run_command}`}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold text-white bg-success/80 hover:bg-success border border-success/30 transition-all cursor-pointer">
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  Run
+                                </button>
+                              )}
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -5,9 +5,17 @@ interface NginxEditorModeProps {
   initialDomain?: string;
   initialUpstream?: string;
   initialAdvancedConfig?: string;
+  initialProjectPath?: string;
+  initialRunCommand?: string;
   isEditing?: boolean;
   loading: boolean;
-  onSave: (domain: string, upstream: string, advancedConfig: string) => Promise<void>;
+  onSave: (
+    domain: string,
+    upstream: string,
+    advancedConfig: string,
+    projectPath: string,
+    runCommand: string,
+  ) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -40,6 +48,8 @@ export function NginxEditorMode({
   initialDomain = "",
   initialUpstream = "http://127.0.0.1:3000",
   initialAdvancedConfig = "",
+  initialProjectPath = "",
+  initialRunCommand = "",
   isEditing = false,
   loading,
   onSave,
@@ -48,12 +58,16 @@ export function NginxEditorMode({
   const [domain, setDomain] = useState(initialDomain);
   const [upstream, setUpstream] = useState(initialUpstream);
   const [advancedConfig, setAdvancedConfig] = useState(initialAdvancedConfig);
+  const [projectPath, setProjectPath] = useState(initialProjectPath);
+  const [runCommand, setRunCommand] = useState(initialRunCommand);
 
   useEffect(() => {
     setDomain(initialDomain);
     setUpstream(initialUpstream);
     setAdvancedConfig(initialAdvancedConfig || FULL_TEMPLATE);
-  }, [initialDomain, initialUpstream, initialAdvancedConfig]);
+    setProjectPath(initialProjectPath);
+    setRunCommand(initialRunCommand);
+  }, [initialDomain, initialUpstream, initialAdvancedConfig, initialProjectPath, initialRunCommand]);
 
   const handleClear = () => {
     if (confirm("Xóa trắng toàn bộ Nginx config?")) {
@@ -82,7 +96,7 @@ export function NginxEditorMode({
               </button>
             )}
             <button
-              onClick={() => onSave(domain, upstream, advancedConfig)}
+              onClick={() => onSave(domain, upstream, advancedConfig, projectPath, runCommand)}
               disabled={loading || !domain.trim() || !upstream.trim()}
               className="px-6 py-2 text-sm font-bold rounded-lg bg-accent text-white hover:bg-accent-hover active:scale-95 transition-all shadow-lg shadow-accent/20 disabled:opacity-50 disabled:active:scale-100 flex items-center gap-2"
             >
@@ -124,6 +138,44 @@ export function NginxEditorMode({
                 onChange={(e) => setUpstream(e.target.value)}
                 placeholder="http://127.0.0.1:3000"
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-surface-3/30 border border-surface-3 text-text font-mono text-sm placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-5 mt-5">
+          <div className="flex-1">
+            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">
+              Thư mục dự án (tùy chọn)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-2.5 text-text-muted/50">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+              </span>
+              <input
+                type="text"
+                value={projectPath}
+                onChange={(e) => setProjectPath(e.target.value)}
+                placeholder="C:\Users\you\Code\my-app"
+                className="w-full pl-10 pr-4 py-2 rounded-lg bg-surface-3/30 border border-surface-3 text-text font-mono text-sm placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
+              />
+            </div>
+          </div>
+          <div className="flex-1">
+            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">
+              Lệnh Run (tùy chọn)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-2.5 text-text-muted/50">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              </span>
+              <input
+                type="text"
+                value={runCommand}
+                onChange={(e) => setRunCommand(e.target.value)}
+                placeholder="npm run dev"
+                disabled={!projectPath.trim()}
+                className="w-full pl-10 pr-4 py-2 rounded-lg bg-surface-3/30 border border-surface-3 text-text font-mono text-sm placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all disabled:opacity-50"
               />
             </div>
           </div>

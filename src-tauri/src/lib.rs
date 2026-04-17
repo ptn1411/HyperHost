@@ -224,6 +224,10 @@ pub fn run() {
             ipc::commands::get_home_dir,
             ipc::commands::open_terminal,
             ipc::commands::open_folder,
+            ipc::commands::import_nginx_config,
+            ipc::commands::import_nginx_config_text,
+            ipc::commands::validate_nginx_config,
+            ipc::commands::export_nginx_config_to_project,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

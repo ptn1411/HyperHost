@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
+import { api } from "../lib/tauri";
 
 interface NginxEditorModeProps {
   initialDomain?: string;
@@ -61,6 +62,109 @@ export function NginxEditorMode({
   const [projectPath, setProjectPath] = useState(initialProjectPath);
   const [runCommand, setRunCommand] = useState(initialRunCommand);
 
+  // Import modal state
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  // Validation state
+  const [validateBusy, setValidateBusy] = useState(false);
+  const [validateError, setValidateError] = useState<string | null>(null);
+  const [validateOk, setValidateOk] = useState<string | null>(null);
+
+  // Export modal state
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportProdDomain, setExportProdDomain] = useState("");
+  const [exportProdUpstream, setExportProdUpstream] = useState("http://127.0.0.1:3000");
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportResult, setExportResult] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleValidate = async (content?: string): Promise<boolean> => {
+    const src = (content ?? advancedConfig).trim();
+    if (!src) {
+      setValidateError("Config trống — không có gì để validate.");
+      setValidateOk(null);
+      return false;
+    }
+    setValidateBusy(true);
+    setValidateError(null);
+    setValidateOk(null);
+    try {
+      const out = await api.validateNginxConfig(src);
+      setValidateOk(out.trim() || "nginx -t: syntax OK");
+      return true;
+    } catch (e: any) {
+      setValidateError(String(e));
+      return false;
+    } finally {
+      setValidateBusy(false);
+    }
+  };
+
+  const handleImportApply = async () => {
+    if (!importText.trim()) return;
+    setImportBusy(true);
+    setImportError(null);
+    try {
+      const r = await api.importNginxConfigText(importText);
+      try {
+        await api.validateNginxConfig(r.advanced_config);
+        setValidateOk("Import passed nginx -t ✓");
+        setValidateError(null);
+      } catch (ve: any) {
+        setValidateError(`Import: nginx -t thất bại\n${String(ve)}`);
+        setValidateOk(null);
+      }
+      setAdvancedConfig(r.advanced_config);
+      if (r.suggested_upstream) setUpstream(r.suggested_upstream);
+      if (!domain.trim() && r.server_name) {
+        const parts = r.server_name.split(".");
+        const base = parts.length > 1 ? parts[0] : r.server_name;
+        setDomain(`${base}.test`);
+      }
+      setImportOpen(false);
+      setImportText("");
+    } catch (e: any) {
+      setImportError(String(e));
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  const handleExportApply = async () => {
+    if (!exportProdDomain.trim() || !exportProdUpstream.trim()) return;
+    setExportBusy(true);
+    setExportError(null);
+    setExportResult(null);
+    try {
+      const path = await api.exportNginxConfigToProject(
+        initialDomain,
+        exportProdDomain.trim(),
+        exportProdUpstream.trim(),
+      );
+      setExportResult(path);
+    } catch (e: any) {
+      setExportError(String(e));
+    } finally {
+      setExportBusy(false);
+    }
+  };
+
+  const openExportModal = () => {
+    if (initialDomain.endsWith(".test") || initialDomain.endsWith(".local")) {
+      const base = initialDomain.replace(/\.(test|local)$/, "");
+      if (!exportProdDomain) setExportProdDomain(`${base}.example.com`);
+    }
+    if (!exportProdUpstream || exportProdUpstream === "http://127.0.0.1:3000") {
+      setExportProdUpstream(upstream);
+    }
+    setExportResult(null);
+    setExportError(null);
+    setExportOpen(true);
+  };
+
   useEffect(() => {
     setDomain(initialDomain);
     setUpstream(initialUpstream);
@@ -85,9 +189,48 @@ export function NginxEditorMode({
             {isEditing ? `Chỉnh sửa Domain: ${initialDomain}` : "Tạo cấu hình Proxy Mới"}
           </h2>
           <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => { setImportError(null); setImportOpen(true); }}
+              disabled={loading}
+              className="px-3 py-2 text-xs font-semibold rounded-lg text-text-muted hover:text-accent hover:bg-accent/10 border border-surface-3 hover:border-accent/30 transition-all disabled:opacity-50 flex items-center gap-1.5"
+              title="Dán nội dung .conf từ prod để tự động convert sang dev">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              Import từ prod
+            </button>
+            <button
+              type="button"
+              onClick={() => handleValidate()}
+              disabled={loading || validateBusy || !advancedConfig.trim()}
+              className="px-3 py-2 text-xs font-semibold rounded-lg text-text-muted hover:text-accent hover:bg-accent/10 border border-surface-3 hover:border-accent/30 transition-all disabled:opacity-50 flex items-center gap-1.5"
+              title="Chạy nginx -t để kiểm tra syntax của advanced config">
+              {validateBusy ? (
+                <span className="w-3.5 h-3.5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+              ) : (
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              )}
+              Validate (nginx -t)
+            </button>
+            {isEditing && projectPath.trim() && (
+              <button
+                type="button"
+                onClick={openExportModal}
+                disabled={loading}
+                className="px-3 py-2 text-xs font-semibold rounded-lg text-text-muted hover:text-accent hover:bg-accent/10 border border-surface-3 hover:border-accent/30 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                title="Xuất config ra thư mục dự án để dùng cho prod">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export sang project
+              </button>
+            )}
             {isEditing && (
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={onCancel}
                 disabled={loading}
                 className="px-4 py-2 text-sm font-semibold rounded-lg text-text-muted hover:text-white hover:bg-surface-3 transition-colors disabled:opacity-50"
@@ -182,6 +325,29 @@ export function NginxEditorMode({
         </div>
       </div>
 
+      {(validateError || validateOk) && (
+        <div className="px-6 py-3 border-b border-surface-3/30 bg-surface">
+          {validateError && (
+            <div className="flex items-start gap-2 text-xs text-danger bg-danger/10 border border-danger/20 rounded-lg p-2.5 font-mono whitespace-pre-wrap">
+              <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M4.93 4.93a10 10 0 1014.14 0 10 10 0 00-14.14 0z" />
+              </svg>
+              <div className="flex-1 min-w-0 break-words">{validateError}</div>
+              <button onClick={() => setValidateError(null)} className="text-danger/70 hover:text-danger shrink-0">✕</button>
+            </div>
+          )}
+          {validateOk && !validateError && (
+            <div className="flex items-center gap-2 text-xs text-success bg-success/10 border border-success/20 rounded-lg p-2.5 font-mono">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <div className="flex-1 min-w-0 break-words whitespace-pre-wrap">{validateOk}</div>
+              <button onClick={() => setValidateOk(null)} className="text-success/70 hover:text-success shrink-0">✕</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Editor View */}
       <div className="flex flex-col h-[500px]">
         {/* Code Editor */}
@@ -232,6 +398,88 @@ export function NginxEditorMode({
           </div>
         </div>
       </div>
+
+      {importOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setImportOpen(false)}>
+          <div className="bg-surface-2 border border-surface-3 rounded-2xl shadow-2xl p-6 w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-text mb-2">Import nginx config từ prod</h3>
+            <p className="text-xs text-text-muted mb-4">
+              Dán nội dung file <code className="bg-surface-3/30 px-1 py-0.5 rounded font-mono">.conf</code> của bạn. Tool sẽ tự strip SSL/listen/server_name và rewrite <code className="bg-surface-3/30 px-1 py-0.5 rounded font-mono">proxy_pass</code> thành <code className="bg-surface-3/30 px-1 py-0.5 rounded font-mono">$UPSTREAM</code>.
+            </p>
+            <textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder="server { ... }"
+              rows={14}
+              className="w-full px-3 py-2 rounded-lg bg-surface border border-surface-3 text-text font-mono text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all resize-y"
+            />
+            {importError && (
+              <p className="mt-2 text-xs text-danger bg-danger/10 border border-danger/20 rounded-lg p-2.5 font-mono">{importError}</p>
+            )}
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => { setImportOpen(false); setImportError(null); }}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-text-muted bg-surface-3/50 hover:bg-surface-3 transition-colors cursor-pointer">
+                Hủy
+              </button>
+              <button
+                onClick={handleImportApply}
+                disabled={importBusy || !importText.trim()}
+                className="px-5 py-2 rounded-lg text-sm font-bold text-white bg-accent hover:bg-accent-hover disabled:opacity-50 transition-all cursor-pointer">
+                {importBusy ? "Đang xử lý…" : "Convert & Áp dụng"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {exportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setExportOpen(false)}>
+          <div className="bg-surface-2 border border-surface-3 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-text mb-2">Export sang thư mục dự án</h3>
+            <p className="text-xs text-text-muted mb-4">
+              Ghi file <code className="bg-surface-3/30 px-1 py-0.5 rounded font-mono">{`<project>/nginx/<prod-domain>.conf`}</code> đã strip SSL (để Certbot tự thêm trên prod).
+            </p>
+            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-1.5 uppercase">Prod Domain</label>
+            <input
+              type="text"
+              value={exportProdDomain}
+              onChange={(e) => setExportProdDomain(e.target.value)}
+              placeholder="myapp.example.com"
+              className="w-full px-3 py-2 rounded-lg bg-surface border border-surface-3 text-text font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 mb-3"
+            />
+            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-1.5 uppercase">Prod Upstream</label>
+            <input
+              type="text"
+              value={exportProdUpstream}
+              onChange={(e) => setExportProdUpstream(e.target.value)}
+              placeholder="http://127.0.0.1:3000"
+              className="w-full px-3 py-2 rounded-lg bg-surface border border-surface-3 text-text font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50"
+            />
+            {exportResult && (
+              <p className="mt-3 text-xs text-success bg-success/10 border border-success/20 rounded-lg p-2.5 font-mono break-all">
+                ✓ Đã ghi: {exportResult}
+              </p>
+            )}
+            {exportError && (
+              <p className="mt-3 text-xs text-danger bg-danger/10 border border-danger/20 rounded-lg p-2.5 font-mono">{exportError}</p>
+            )}
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setExportOpen(false)}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-text-muted bg-surface-3/50 hover:bg-surface-3 transition-colors cursor-pointer">
+                Đóng
+              </button>
+              <button
+                onClick={handleExportApply}
+                disabled={exportBusy || !exportProdDomain.trim() || !exportProdUpstream.trim()}
+                className="px-5 py-2 rounded-lg text-sm font-bold text-white bg-accent hover:bg-accent-hover disabled:opacity-50 transition-all cursor-pointer">
+                {exportBusy ? "Đang ghi…" : "Xuất file"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

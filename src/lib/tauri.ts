@@ -130,4 +130,20 @@ export const api = {
     invoke<void>("open_terminal", { path, command }),
   openFolder: (path: string) =>
     invoke<void>("open_folder", { path }),
+
+  // Nginx prod <-> dev conversion
+  importNginxConfig: (filePath: string) =>
+    invoke<ImportedNginx>("import_nginx_config", { filePath }),
+  importNginxConfigText: (content: string) =>
+    invoke<ImportedNginx>("import_nginx_config_text", { content }),
+  validateNginxConfig: (content: string) =>
+    invoke<string>("validate_nginx_config", { content }),
+  exportNginxConfigToProject: (domain: string, prodDomain: string, prodUpstream: string) =>
+    invoke<string>("export_nginx_config_to_project", { domain, prodDomain, prodUpstream }),
 };
+
+export interface ImportedNginx {
+  advanced_config: string;
+  suggested_upstream: string | null;
+  server_name: string | null;
+}

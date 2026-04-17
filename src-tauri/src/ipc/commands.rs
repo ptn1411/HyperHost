@@ -801,6 +801,66 @@ pub async fn get_home_dir() -> Result<String, String> {
 }
 
 #[tauri::command]
+pub async fn import_nginx_config(
+    file_path: String,
+) -> Result<crate::nginx::import::ImportedNginx, String> {
+    let content = std::fs::read_to_string(&file_path)
+        .map_err(|e| format!("Không đọc được file: {}", e))?;
+    crate::nginx::import::convert_prod_to_dev(&content)
+}
+
+#[tauri::command]
+pub async fn import_nginx_config_text(
+    content: String,
+) -> Result<crate::nginx::import::ImportedNginx, String> {
+    crate::nginx::import::convert_prod_to_dev(&content)
+}
+
+#[tauri::command]
+pub async fn validate_nginx_config(
+    content: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    crate::nginx::import::validate_config(&content, &state.nginx.exe)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn export_nginx_config_to_project(
+    domain: String,
+    prod_domain: String,
+    prod_upstream: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let all = state.db.list_domains().map_err(|e| e.to_string())?;
+    let cfg = all
+        .into_iter()
+        .find(|d| d.domain == domain)
+        .ok_or("Domain không tồn tại")?;
+    let project_path = cfg
+        .project_path
+        .as_deref()
+        .filter(|s| !s.is_empty())
+        .ok_or("Domain chưa gắn với thư mục dự án")?;
+    let adv = cfg.advanced_config.as_deref().unwrap_or("");
+    let dev_config = if adv.trim_start().starts_with("server") {
+        adv.to_string()
+    } else {
+        format!(
+            "server {{\n    listen 443 ssl;\n    http2 on;\n    server_name $DOMAIN;\n\n{}\n\n    location / {{\n        proxy_pass $UPSTREAM;\n    }}\n}}\n",
+            adv
+        )
+    };
+    let prod = crate::nginx::import::convert_dev_to_prod(&dev_config, &prod_domain, &prod_upstream);
+
+    let dir = std::path::PathBuf::from(project_path).join("nginx");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let file_path = dir.join(format!("{}.conf", prod_domain));
+    std::fs::write(&file_path, &prod).map_err(|e| e.to_string())?;
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 pub async fn open_folder(path: String) -> Result<(), String> {
     let p = std::path::PathBuf::from(&path);
     if !p.exists() {

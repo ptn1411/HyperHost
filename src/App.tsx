@@ -7,6 +7,7 @@ import { QuickStartPanel, QuickStartSelection } from "./components/QuickStartPan
 import { TrafficInspector } from "./components/TrafficInspector";
 import { UpdateDialog } from "./components/UpdateDialog";
 import { api, AppSettings, CaStatus, DomainStatus, NginxInfo } from "./lib/tauri";
+import { i18n, getLocale, setLocale as setI18nLocale, SUPPORTED_LOCALES, SupportedLocale } from "./translation";
 
 function App() {
   const [domains, setDomains] = useState<DomainStatus[]>([]);
@@ -37,6 +38,14 @@ function App() {
   const [stats, setStats] = useState<Record<string, { count: number; totalMs: number }>>({});
   const [caWarningDismissed, setCaWarningDismissed] = useState(false);
   const [dockerPanelFor, setDockerPanelFor] = useState<{ domain: string; projectPath: string } | null>(null);
+  const [locale, setLocale] = useState<SupportedLocale>(getLocale() as SupportedLocale);
+
+  const handleChangeLocale = (l: SupportedLocale) => {
+    setI18nLocale(l);
+    setLocale(l);
+  };
+
+  const t = i18n.t;
 
   const refresh = async () => {
     try {
@@ -315,7 +324,7 @@ function App() {
         const imported = await api.importDomains(text);
         await refresh();
         if (imported.length === 0) {
-          setError("No valid domains found in import file.");
+          setError(t("importNoValid"));
         }
       } catch (err: any) {
         setError(String(err));
@@ -396,8 +405,8 @@ function App() {
               HyperHost Manager
             </h1>
             <p className="text-text-muted mt-2 text-sm">
-              Local HTTPS domains for development •{" "}
-              <span className="font-mono text-xs">v0.4.0</span>
+              {t("headerSubtitle")} •{" "}
+              <span className="font-mono text-xs">v0.4.1</span>
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -418,7 +427,7 @@ function App() {
                 className={`w-2.5 h-2.5 rounded-full shadow-sm ${nginxInfo?.running ? "bg-success shadow-success/50 animate-pulse" : "bg-danger"}`}
               />
               <span className="font-mono">
-                {nginxInfo?.running ? "nginx: RUNNING" : "nginx: STOPPED"}
+                {nginxInfo?.running ? t("nginxRunning") : t("nginxStopped")}
               </span>
             </button>
 
@@ -440,7 +449,7 @@ function App() {
                     d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                   />
                 </svg>
-                Install CA
+                {t("caInstall")}
               </button>
             )}
             {caStatus?.installed && (
@@ -461,7 +470,7 @@ function App() {
                     />
                   </svg>
                 </span>
-                CA Trusted
+                {t("caTrusted")}
                 {caStatus.fingerprint && (
                   <span className="font-mono text-xs text-text-muted/60 truncate max-w-[120px]">
                     {caStatus.fingerprint.slice(0, 11)}…
@@ -480,16 +489,16 @@ function App() {
                 d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
             <div className="flex-1">
-              <p className="font-semibold">CA Certificate chưa được trust</p>
+              <p className="font-semibold">{t("caNotTrustedTitle")}</p>
               <p className="text-warning/80 mt-0.5 text-xs">
-                Trình duyệt sẽ hiển thị khóa đỏ cho các domain HTTPS. Cài CA certificate để fix.
+                {t("caNotTrustedDesc")}
               </p>
             </div>
             <button
               onClick={handleInstallCa}
               disabled={loading}
               className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-warning/20 hover:bg-warning/30 border border-warning/40 transition-colors cursor-pointer disabled:opacity-50">
-              Cài ngay
+              {t("caInstallNow")}
             </button>
             <button
               onClick={() => setCaWarningDismissed(true)}
@@ -535,22 +544,22 @@ function App() {
           <button
             onClick={() => setActiveTab("domains")}
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "domains" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}>
-            Tên Miền & Proxy
+            {t("tabDomains")}
           </button>
           <button
             onClick={() => setActiveTab("traffic")}
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "traffic" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}>
-            Live Traffic
+            {t("tabTraffic")}
           </button>
           <button
             onClick={() => setActiveTab("named-tunnel")}
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "named-tunnel" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}>
-            Named Tunnel
+            {t("tabNamedTunnel")}
           </button>
           <button
             onClick={() => setActiveTab("settings")}
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === "settings" ? "bg-surface shadow-sm text-text" : "text-text-muted hover:text-text cursor-pointer"}`}>
-            ⚙ Cài đặt
+            {t("tabSettings")}
           </button>
         </div>
 
@@ -595,15 +604,15 @@ function App() {
           <NamedTunnelPanel />
         ) : activeTab === "settings" ? (
           <div className="max-w-lg">
-            <h2 className="text-lg font-bold text-text mb-6">Cài đặt ứng dụng</h2>
+            <h2 className="text-lg font-bold text-text mb-6">{t("settingsTitle")}</h2>
             <div className="space-y-3">
 
               {/* Autostart */}
               <div className="rounded-xl bg-surface-2 border border-surface-3/50 overflow-hidden">
                 <div className="flex items-center justify-between p-4">
                   <div>
-                    <p className="text-sm font-semibold text-text">Khởi động cùng Windows</p>
-                    <p className="text-xs text-text-muted mt-0.5">Tự động chạy HyperHost khi đăng nhập Windows</p>
+                    <p className="text-sm font-semibold text-text">{t("settingsAutostart")}</p>
+                    <p className="text-xs text-text-muted mt-0.5">{t("settingsAutostartDesc")}</p>
                   </div>
                   <button
                     onClick={async () => {
@@ -628,9 +637,9 @@ function App() {
                 {appSettings?.autostart && (
                   <div className="flex items-center justify-between px-4 py-3 bg-surface-3/20 border-t border-surface-3/40">
                     <div className="pl-3 border-l-2 border-accent/40">
-                      <p className="text-sm font-medium text-text">Chỉ chạy icon khay, không mở cửa sổ</p>
+                      <p className="text-sm font-medium text-text">{t("settingsStartHidden")}</p>
                       <p className="text-xs text-text-muted mt-0.5">
-                        Khi Windows khởi động, HyperHost chạy ngầm — icon xuất hiện ở góc phải màn hình
+                        {t("settingsStartHiddenDesc")}
                       </p>
                     </div>
                     <button
@@ -652,6 +661,24 @@ function App() {
                     </button>
                   </div>
                 )}
+              </div>
+
+              {/* Language Selector */}
+              <div className="rounded-xl bg-surface-2 border border-surface-3/50 overflow-hidden">
+                <div className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-text">{t("settingsLanguage")}</p>
+                    <p className="text-xs text-text-muted mt-0.5">{t("settingsLanguageDesc")}</p>
+                  </div>
+                  <select
+                    value={locale}
+                    onChange={(e) => handleChangeLocale(e.target.value as SupportedLocale)}
+                    className="px-3 py-1.5 rounded-lg bg-surface border border-surface-3 text-text text-sm cursor-pointer focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all">
+                    {SUPPORTED_LOCALES.map((l) => (
+                      <option key={l.value} value={l.value}>{l.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
             </div>
@@ -687,7 +714,7 @@ function App() {
                 className="mb-10 p-6 rounded-xl bg-surface-2 shadow-md border border-surface-3/30 transition-all duration-200">
                 <h2 className="text-lg font-semibold mb-5 text-text flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    Thêm Route Nhanh
+                    {t("quickAddTitle")}
                   </div>
                   <button
                     type="button"
@@ -705,13 +732,13 @@ function App() {
                         d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
                       />
                     </svg>
-                    Chế độ Code Editor
+                    {t("codeEditorMode")}
                   </button>
                 </h2>
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1">
                     <label className="block text-xs font-semibold tracking-wide text-text-muted mb-2 uppercase">
-                      Local Domain
+                      {t("labelLocalDomain")}
                     </label>
                     <div className="relative">
                       <span className="absolute left-3.5 top-3 text-text-muted">
@@ -739,7 +766,7 @@ function App() {
                   </div>
                   <div className="flex-1">
                     <label className="block text-xs font-semibold tracking-wide text-text-muted mb-2 uppercase">
-                      Upstream Server
+                      {t("labelUpstream")}
                     </label>
                     <div className="relative">
                       <span className="absolute left-3.5 top-3 text-text-muted">
@@ -770,7 +797,7 @@ function App() {
                       type="submit"
                       disabled={loading || !domain.trim()}
                       className="w-full md:w-auto px-8 py-2.5 rounded-lg bg-accent text-white font-semibold cursor-pointer hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 active:scale-95 shadow-md shadow-accent/20">
-                      {loading ? "..." : "Tạo Nhanh"}
+                      {loading ? t("btnCreating") : t("btnQuickCreate")}
                     </button>
                   </div>
                 </div>
@@ -782,7 +809,7 @@ function App() {
             <div className="space-y-4">
               <div className="flex items-end justify-between mb-4 border-b border-surface-3/30 pb-3">
                 <h2 className="text-xl font-bold text-text flex items-center gap-2">
-                  Active Routes
+                  {t("domainListTitle")}
                   <span className="bg-surface-3 text-text text-xs px-2.5 py-0.5 rounded-full font-mono">
                     {domains.length}
                   </span>
@@ -791,21 +818,21 @@ function App() {
                   <button
                     onClick={handleImport}
                     className="text-sm font-medium text-text-muted hover:text-accent transition-colors cursor-pointer flex items-center gap-1.5"
-                    title="Import domains from JSON">
+                    title={t("importTitle")}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
-                    Import
+                    {t("btnImport")}
                   </button>
                   <span className="text-surface-3">|</span>
                   <button
                     onClick={handleExport}
                     className="text-sm font-medium text-text-muted hover:text-accent transition-colors cursor-pointer flex items-center gap-1.5"
-                    title="Export all domains to JSON">
+                    title={t("exportTitle")}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    Export
+                    {t("btnExport")}
                   </button>
                   <span className="text-surface-3">|</span>
                   <button
@@ -814,7 +841,7 @@ function App() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    {showLogs ? "Hide Error Log" : "Nginx Error Log"}
+                    {showLogs ? t("errorLogHide") : t("errorLogShow")}
                   </button>
                 </div>
               </div>
@@ -834,10 +861,10 @@ function App() {
                     />
                   </svg>
                   <p className="text-text-muted font-medium">
-                    No domains configured
+                    {t("emptyDomainTitle")}
                   </p>
                   <p className="text-text-muted/60 text-sm mt-1">
-                    Add your first local proxy route above.
+                    {t("emptyDomainDesc")}
                   </p>
                 </div>
               )}
@@ -900,20 +927,20 @@ function App() {
                               <>
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                </svg>{" "}Valid SSL
+                                </svg>{" "}{t("sslValid")}
                               </>
                             ) : (
                               <>
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                                </svg>{" "}Invalid SSL
+                                </svg>{" "}{t("sslInvalid")}
                               </>
                             )}
                           </span>
                           {/* CORS Badge */}
                           <button
                             onClick={() => handleToggleCors(d.config.domain)}
-                            title={d.config.cors_enabled ? "CORS enabled — click to disable" : "Click to enable CORS headers"}
+                            title={d.config.cors_enabled ? t("corsDisableTitle") : t("corsEnableTitle")}
                             className={`flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-md cursor-pointer transition-all ${
                               d.config.cors_enabled
                                 ? "bg-accent/15 text-accent border border-accent/30 hover:bg-accent/25"
@@ -955,7 +982,7 @@ function App() {
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                                 </svg>
-                                Folder
+                                {t("btnFolder")}
                               </button>
                               <button
                                 onClick={() => handleOpenProjectTerminal(d.config.project_path!)}
@@ -984,7 +1011,7 @@ function App() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
-                                  Run
+                                  {t("btnRun")}
                                 </button>
                               )}
                             </>
@@ -998,7 +1025,7 @@ function App() {
                         <div className="flex flex-col gap-1.5 mr-2">
                           {tunnels[d.config.domain].loading ? (
                             <span className="text-xs text-accent animate-pulse">
-                              Starting Tunnel...
+                              {t("tunnelStarting")}
                             </span>
                           ) : (
                             <>
@@ -1016,7 +1043,7 @@ function App() {
                                     )
                                   }
                                   className="px-2 border-l border-accent/20 text-accent hover:bg-accent/20 transition-colors"
-                                  title="Copy URL">
+                                  title={t("tooltipCopyUrl")}>
                                   <svg
                                     className="w-3.5 h-3.5"
                                     fill="none"
@@ -1033,7 +1060,7 @@ function App() {
                                 <button
                                   onClick={() => toggleTunnel(d.config.domain)}
                                   className="px-2 border-l border-accent/20 text-accent hover:bg-accent hover:text-white transition-colors"
-                                  title="Stop Tunnel">
+                                  title={t("tooltipStopTunnel")}>
                                   <svg
                                     className="w-4 h-4"
                                     fill="none"
@@ -1059,7 +1086,7 @@ function App() {
                         <button
                           onClick={() => toggleTunnel(d.config.domain)}
                           className="p-2.5 rounded-lg text-text-muted cursor-pointer hover:text-accent hover:bg-accent/10 border border-transparent hover:border-accent/20 transition-all"
-                          title="Share Public Tunnel">
+                          title={t("tooltipShareTunnel")}>
                           <svg
                             className="w-5 h-5"
                             fill="none"
@@ -1077,7 +1104,7 @@ function App() {
                       <button
                         onClick={() => handleEdit(d)}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-accent bg-accent/10 border border-accent/20 hover:bg-accent hover:text-white cursor-pointer transition-all shadow-sm"
-                        title="Edit Configuration">
+                        title={t("tooltipEditConfig")}>
                         <svg
                           className="w-4 h-4"
                           fill="none"
@@ -1090,7 +1117,7 @@ function App() {
                             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                           />
                         </svg>
-                        Sửa
+                        {t("btnEdit")}
                       </button>
                       <button
                         onClick={() =>
@@ -1099,7 +1126,7 @@ function App() {
                           )
                         }
                         className="p-2.5 rounded-lg text-text-muted cursor-pointer hover:text-accent hover:bg-accent/10 border border-transparent hover:border-accent/20 transition-all"
-                        title="Copy URL">
+                        title={t("tooltipCopyUrl")}>
                         <svg
                           className="w-5 h-5"
                           fill="none"
@@ -1116,7 +1143,7 @@ function App() {
                       <button
                         onClick={() => handleRemove(d.config.domain)}
                         className="p-2.5 rounded-lg text-text-muted cursor-pointer hover:text-danger hover:bg-danger/10 border border-transparent hover:border-danger/20 transition-all"
-                        title="Remove Route">
+                        title={t("tooltipRemoveRoute")}>
                         <svg
                           className="w-5 h-5"
                           fill="none"
@@ -1153,18 +1180,18 @@ function App() {
                         d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                       />
                     </svg>
-                    nginx error.log
+                    {t("logTitle")}
                   </h3>
                   <button
                     onClick={handleShowLogs}
                     className="text-xs text-text-muted/60 hover:text-text-muted transition-colors cursor-pointer font-mono">
-                    ↻ Refresh
+                    {t("logRefresh")}
                   </button>
                 </div>
                 <div className="bg-black/50 rounded-lg p-4 h-64 overflow-y-auto font-mono text-[11px] text-gray-300 leading-normal border border-white/5">
                   {logs.length === 0 ? (
                     <p className="text-center py-10 text-text-muted/40 italic">
-                      Nothing interesting is happening right now.
+                      {t("logEmpty")}
                     </p>
                   ) : (
                     <div className="space-y-1">
@@ -1203,10 +1230,10 @@ function App() {
                   />
                 </svg>
               </span>
-              <h3 className="text-lg font-bold text-text">Xác nhận xóa</h3>
+              <h3 className="text-lg font-bold text-text">{t("deleteTitle")}</h3>
             </div>
             <p className="text-sm text-text-muted mb-1">
-              Bạn có chắc muốn xóa domain này?
+               {t("deleteMessage")}
             </p>
             <p className="text-sm font-mono font-semibold text-text bg-surface px-3 py-2 rounded-lg border border-surface-3/50 mb-6">
               {deleteConfirm}
@@ -1215,12 +1242,12 @@ function App() {
               <button
                 onClick={() => setDeleteConfirm(null)}
                 className="px-5 py-2.5 rounded-lg text-sm font-semibold text-text-muted bg-surface-3/50 hover:bg-surface-3 transition-colors cursor-pointer">
-                Hủy
+                {t("btnCancel")}
               </button>
               <button
                 onClick={confirmRemove}
                 className="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-danger hover:bg-red-600 transition-colors cursor-pointer shadow-md shadow-danger/20 active:scale-95">
-                Xóa domain
+                {t("btnDeleteDomain")}
               </button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, NamedTunnelConfig } from "../lib/tauri";
+import { i18n } from "../translation";
 
 export function NamedTunnelPanel() {
   const [tunnels, setTunnels] = useState<NamedTunnelConfig[]>([]);
@@ -125,9 +126,9 @@ export function NamedTunnelPanel() {
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-surface-3/30">
         <div>
-          <h2 className="text-xl font-bold text-text">Named Tunnel</h2>
+          <h2 className="text-xl font-bold text-text">{i18n.t("namedTunnelTitle")}</h2>
           <p className="text-text-muted text-sm mt-0.5">
-            Dùng domain cố định của bạn qua Cloudflare
+            {i18n.t("namedTunnelDesc")}
           </p>
         </div>
 
@@ -141,7 +142,7 @@ export function NamedTunnelPanel() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
             </svg>
-            Login Cloudflare
+            {i18n.t("namedTunnelLogin")}
           </button>
         ) : isLoggedIn === true ? (
           <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-2 border border-surface-3 text-text-muted text-sm">
@@ -150,18 +151,18 @@ export function NamedTunnelPanel() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
             </span>
-            Cloudflare: Connected
+            {i18n.t("namedTunnelConnected")}
           </div>
         ) : null}
       </div>
 
       {/* Info box */}
       <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 text-blue-400 text-sm">
-        <p className="font-semibold mb-1">Yêu cầu:</p>
+        <p className="font-semibold mb-1">{i18n.t("namedTunnelRequirements")}</p>
         <ul className="list-disc list-inside space-y-0.5 text-blue-400/80 text-xs">
-          <li>Bạn sở hữu domain và đã thêm vào Cloudflare</li>
-          <li>Đăng nhập Cloudflare một lần duy nhất (tạo cert.pem)</li>
-          <li>Mỗi tunnel = 1 hostname cố định → upstream local</li>
+          <li>{i18n.t("namedTunnelReqOwn")}</li>
+          <li>{i18n.t("namedTunnelReqLogin")}</li>
+          <li>{i18n.t("namedTunnelReqEach")}</li>
         </ul>
       </div>
 
@@ -190,7 +191,7 @@ export function NamedTunnelPanel() {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          Thêm Named Tunnel
+          {i18n.t("namedTunnelAdd")}
         </button>
       )}
 
@@ -199,12 +200,12 @@ export function NamedTunnelPanel() {
         <form
           onSubmit={handleAdd}
           className="p-5 rounded-xl bg-surface-2 border border-surface-3/50 space-y-4">
-          <h3 className="font-semibold text-text">Thêm Named Tunnel mới</h3>
+          <h3 className="font-semibold text-text">{i18n.t("namedTunnelAddNew")}</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-1.5">
-                Tên Tunnel
+                {i18n.t("namedTunnelLabelName")}
               </label>
               <input
                 type="text"
@@ -217,7 +218,7 @@ export function NamedTunnelPanel() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-1.5">
-                Hostname (domain bạn sở hữu)
+                {i18n.t("namedTunnelLabelHostname")}
               </label>
               <input
                 type="text"
@@ -230,7 +231,7 @@ export function NamedTunnelPanel() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-1.5">
-                Upstream (local server)
+                {i18n.t("namedTunnelLabelUpstream")}
               </label>
               <input
                 type="text"
@@ -248,13 +249,13 @@ export function NamedTunnelPanel() {
               type="submit"
               disabled={loading}
               className="px-5 py-2 rounded-lg bg-accent text-white text-sm font-semibold hover:bg-accent-hover transition-all cursor-pointer disabled:opacity-50">
-              Thêm
+              {i18n.t("namedTunnelBtnAdd")}
             </button>
             <button
               type="button"
               onClick={() => setShowForm(false)}
               className="px-5 py-2 rounded-lg bg-surface-3 text-text-muted text-sm font-semibold hover:text-text transition-all cursor-pointer">
-              Hủy
+              {i18n.t("namedTunnelBtnCancel")}
             </button>
           </div>
         </form>
@@ -267,8 +268,8 @@ export function NamedTunnelPanel() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
               d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
           </svg>
-          <p className="text-text-muted font-medium">Chưa có Named Tunnel nào</p>
-          <p className="text-text-muted/60 text-sm mt-1">Thêm tunnel để dùng domain cố định.</p>
+          <p className="text-text-muted font-medium">{i18n.t("namedTunnelEmpty")}</p>
+          <p className="text-text-muted/60 text-sm mt-1">{i18n.t("namedTunnelEmptyDesc")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -290,16 +291,16 @@ export function NamedTunnelPanel() {
                         <span className="font-mono font-semibold text-text">{t.tunnel_name}</span>
                         {provisioned ? (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
-                            Provisioned
+                            {i18n.t("namedTunnelProvisioned")}
                           </span>
                         ) : (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/20">
-                            Not Provisioned
+                            {i18n.t("namedTunnelNotProvisioned")}
                           </span>
                         )}
                         {running && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
-                            Running
+                            {i18n.t("namedTunnelRunning")}
                           </span>
                         )}
                       </div>
@@ -316,9 +317,9 @@ export function NamedTunnelPanel() {
                       <button
                         onClick={() => handleProvision(t.tunnel_name)}
                         disabled={loading || !isLoggedIn}
-                        title={!isLoggedIn ? "Cần đăng nhập Cloudflare trước" : "Tạo tunnel trên Cloudflare"}
+                        title={!isLoggedIn ? i18n.t("namedTunnelNeedLogin") : i18n.t("namedTunnelProvisionTooltip")}
                         className="px-3 py-1.5 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20 text-xs font-semibold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
-                        Provision
+                        {i18n.t("namedTunnelProvision")}
                       </button>
                     ) : (
                       <button
@@ -329,7 +330,7 @@ export function NamedTunnelPanel() {
                             ? "bg-danger/10 text-danger border border-danger/20 hover:bg-danger/20"
                             : "bg-success/10 text-success border border-success/20 hover:bg-success/20"
                         }`}>
-                        {running ? "Stop" : "Start"}
+                        {running ? i18n.t("namedTunnelStop") : i18n.t("namedTunnelStart")}
                       </button>
                     )}
 

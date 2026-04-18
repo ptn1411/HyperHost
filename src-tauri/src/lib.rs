@@ -5,6 +5,8 @@ pub mod db;
 pub mod detect;
 pub mod dns;
 #[cfg(feature = "gui")]
+pub mod docker;
+#[cfg(feature = "gui")]
 pub mod ipc;
 pub mod nginx;
 pub mod paths;
@@ -228,6 +230,13 @@ pub fn run() {
             ipc::commands::import_nginx_config_text,
             ipc::commands::validate_nginx_config,
             ipc::commands::export_nginx_config_to_project,
+            ipc::commands::docker_check,
+            ipc::commands::compose_status,
+            ipc::commands::compose_up,
+            ipc::commands::compose_down,
+            ipc::commands::compose_restart,
+            ipc::commands::compose_logs,
+            ipc::commands::compose_save_file,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -69,6 +69,30 @@ export interface ProjectInfo {
   suggested_command: string | null;
 }
 
+export interface DockerStatus {
+  installed: boolean;
+  version: string | null;
+  daemon_running: boolean;
+}
+
+export interface ComposeService {
+  name: string;
+  image: string;
+  state: string;
+  status: string;
+  ports: string;
+}
+
+export interface ComposeFileEntry {
+  path: string;
+  name: string;
+  services: ComposeService[];
+}
+
+export interface ComposeStatus {
+  files: ComposeFileEntry[];
+}
+
 export const api = {
   listDomains: () => invoke<DomainStatus[]>("list_domains"),
   addDomain: (domain: string, upstream: string, advancedConfig?: string, projectPath?: string, runCommand?: string) =>
@@ -142,6 +166,21 @@ export const api = {
     invoke<string>("validate_nginx_config", { content }),
   exportNginxConfigToProject: (domain: string, prodDomain: string, prodUpstream: string) =>
     invoke<string>("export_nginx_config_to_project", { domain, prodDomain, prodUpstream }),
+
+  // Docker Compose (per-project)
+  dockerCheck: () => invoke<DockerStatus>("docker_check"),
+  composeStatus: (projectPath: string) =>
+    invoke<ComposeStatus>("compose_status", { projectPath }),
+  composeUp: (projectPath: string, file?: string) =>
+    invoke<string>("compose_up", { projectPath, file }),
+  composeDown: (projectPath: string, file?: string) =>
+    invoke<string>("compose_down", { projectPath, file }),
+  composeRestart: (projectPath: string, file?: string) =>
+    invoke<string>("compose_restart", { projectPath, file }),
+  composeLogs: (projectPath: string, file?: string, lines?: number) =>
+    invoke<string>("compose_logs", { projectPath, file, lines }),
+  composeSaveFile: (projectPath: string, fileName: string, content: string) =>
+    invoke<string>("compose_save_file", { projectPath, fileName, content }),
 };
 
 export interface ImportedNginx {

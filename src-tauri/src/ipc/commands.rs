@@ -1000,3 +1000,84 @@ fn is_autostart_windows() -> bool {
         false
     }
 }
+
+// ── Docker Compose ──
+
+#[tauri::command]
+pub async fn docker_check() -> Result<crate::docker::DockerStatus, String> {
+    Ok(tokio::task::spawn_blocking(crate::docker::check_docker)
+        .await
+        .map_err(|e| e.to_string())?)
+}
+
+#[tauri::command]
+pub async fn compose_status(
+    project_path: String,
+) -> Result<crate::docker::ComposeStatus, String> {
+    let p = std::path::PathBuf::from(&project_path);
+    if !p.is_dir() {
+        return Err(format!("Không phải thư mục: {}", project_path));
+    }
+    Ok(tokio::task::spawn_blocking(move || crate::docker::compose_status(&p))
+        .await
+        .map_err(|e| e.to_string())?)
+}
+
+#[tauri::command]
+pub async fn compose_up(
+    project_path: String,
+    file: Option<String>,
+) -> Result<String, String> {
+    let p = std::path::PathBuf::from(&project_path);
+    tokio::task::spawn_blocking(move || crate::docker::compose_up(&p, file.as_deref()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn compose_down(
+    project_path: String,
+    file: Option<String>,
+) -> Result<String, String> {
+    let p = std::path::PathBuf::from(&project_path);
+    tokio::task::spawn_blocking(move || crate::docker::compose_down(&p, file.as_deref()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn compose_restart(
+    project_path: String,
+    file: Option<String>,
+) -> Result<String, String> {
+    let p = std::path::PathBuf::from(&project_path);
+    tokio::task::spawn_blocking(move || crate::docker::compose_restart(&p, file.as_deref()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn compose_logs(
+    project_path: String,
+    file: Option<String>,
+    lines: Option<usize>,
+) -> Result<String, String> {
+    let p = std::path::PathBuf::from(&project_path);
+    let n = lines.unwrap_or(200);
+    tokio::task::spawn_blocking(move || crate::docker::compose_logs(&p, file.as_deref(), n))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn compose_save_file(
+    project_path: String,
+    file_name: String,
+    content: String,
+) -> Result<String, String> {
+    let p = std::path::PathBuf::from(&project_path);
+    tokio::task::spawn_blocking(move || crate::docker::save_compose_file(&p, &file_name, &content))
+        .await
+        .map_err(|e| e.to_string())?
+        .map(|p| p.to_string_lossy().to_string())
+}

@@ -1,5 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
+import { DockerPanel } from "./components/DockerPanel";
 import { NamedTunnelPanel } from "./components/NamedTunnelPanel";
 import { NginxEditorMode } from "./components/NginxEditorMode";
 import { QuickStartPanel, QuickStartSelection } from "./components/QuickStartPanel";
@@ -35,6 +36,7 @@ function App() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [stats, setStats] = useState<Record<string, { count: number; totalMs: number }>>({});
   const [caWarningDismissed, setCaWarningDismissed] = useState(false);
+  const [dockerPanelFor, setDockerPanelFor] = useState<{ domain: string; projectPath: string } | null>(null);
 
   const refresh = async () => {
     try {
@@ -335,6 +337,43 @@ function App() {
   return (
     <div className="min-h-screen bg-surface p-6 font-sans">
       <UpdateDialog />
+      {dockerPanelFor && (
+        <DockerPanel
+          domain={dockerPanelFor.domain}
+          projectPath={dockerPanelFor.projectPath}
+          onClose={() => setDockerPanelFor(null)}
+        />
+      )}
+
+      {/* Vertical side ads — hidden on narrow screens */}
+      <a
+        href="https://portal.vpsre.net/aff.php?aff=93"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="VPS affiliate"
+        className="hidden xl:block fixed left-4 top-1/2 -translate-y-1/2 z-30 w-[160px] rounded-xl overflow-hidden shadow-lg border border-surface-3/40 hover:shadow-2xl hover:scale-[1.02] transition-all">
+        <img src="/VPS.png" alt="VPS" className="block w-full h-auto" />
+      </a>
+      <div className="hidden xl:block fixed right-4 top-1/2 -translate-y-1/2 z-30 w-[160px] rounded-xl overflow-hidden shadow-lg border border-surface-3/40 hover:shadow-2xl transition-all">
+        <div className="relative">
+          <img src="/tinomail-banner-7.jpg" alt="Tino" className="block w-full h-auto" />
+          <a
+            href="https://tino.vn?php=923"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Tino"
+            className="absolute inset-x-0 top-0 h-1/2 hover:bg-white/5 transition-colors"
+          />
+          <a
+            href="https://tino.vn/tino-mail?php=45"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Tino Mail"
+            className="absolute inset-x-0 bottom-0 h-1/2 hover:bg-white/5 transition-colors"
+          />
+        </div>
+      </div>
+
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <header className="flex items-center justify-between mb-10 pb-6 border-b border-surface-3/30">
@@ -461,6 +500,35 @@ function App() {
             </button>
           </div>
         )}
+
+        {/* Inline banners — only on narrow screens where side ads are hidden */}
+        <div className="xl:hidden grid grid-cols-2 gap-3 mb-6">
+          <a
+            href="https://portal.vpsre.net/aff.php?aff=93"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="VPS affiliate"
+            className="block rounded-xl overflow-hidden shadow-lg border border-surface-3/40 hover:shadow-2xl hover:scale-[1.01] transition-all">
+            <img src="/VPS.png" alt="VPS" className="block w-full h-auto" />
+          </a>
+          <div className="relative rounded-xl overflow-hidden shadow-lg border border-surface-3/40 hover:shadow-2xl transition-all">
+            <img src="/tinomail-banner-7.jpg" alt="Tino" className="block w-full h-auto" />
+            <a
+              href="https://tino.vn?php=923"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Tino"
+              className="absolute inset-x-0 top-0 h-1/2 hover:bg-white/5 transition-colors"
+            />
+            <a
+              href="https://tino.vn/tino-mail?php=45"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Tino Mail"
+              className="absolute inset-x-0 bottom-0 h-1/2 hover:bg-white/5 transition-colors"
+            />
+          </div>
+        </div>
 
         {/* Tabs */}
         <div className="flex items-center gap-1 mb-8 p-1 bg-surface-2 rounded-xl border border-surface-3/50 w-fit">
@@ -897,6 +965,15 @@ function App() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 Terminal
+                              </button>
+                              <button
+                                onClick={() => setDockerPanelFor({ domain: d.config.domain, projectPath: d.config.project_path! })}
+                                title="Quản lý docker compose của dự án"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold text-text-muted bg-surface border border-surface-3/40 hover:text-accent hover:border-accent/40 hover:bg-accent/5 transition-all cursor-pointer">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 12h14M5 16h14M3 4h18a1 1 0 011 1v14a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1z" />
+                                </svg>
+                                Docker
                               </button>
                               {d.config.run_command && (
                                 <button

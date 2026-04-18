@@ -1,11 +1,10 @@
 pub mod cert;
-#[cfg(feature = "gui")]
 pub mod cloudflare;
 pub mod db;
 pub mod detect;
 pub mod dns;
-#[cfg(feature = "gui")]
 pub mod docker;
+pub mod mcp;
 #[cfg(feature = "gui")]
 pub mod ipc;
 pub mod nginx;

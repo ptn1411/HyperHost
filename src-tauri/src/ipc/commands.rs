@@ -753,16 +753,20 @@ fn toggle_autostart_windows(enabled: bool, start_hidden: bool) -> anyhow::Result
 pub struct PortInfo {
     pub port: u16,
     pub guess: Option<String>,
+    pub pid: Option<u32>,
+    pub process: Option<String>,
 }
 
 #[tauri::command]
 pub async fn scan_ports() -> Result<Vec<PortInfo>, String> {
-    let ports = crate::detect::ports::scan_listening_ports().await;
+    let ports = crate::detect::ports::scan_listening_ports_detailed().await;
     Ok(ports
         .into_iter()
         .map(|p| PortInfo {
-            port: p,
-            guess: crate::detect::ports::guess_framework(p).map(String::from),
+            guess: crate::detect::ports::guess_framework(p.port).map(String::from),
+            port: p.port,
+            pid: p.pid,
+            process: p.process,
         })
         .collect())
 }

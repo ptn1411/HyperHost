@@ -23,6 +23,7 @@ export function QuickStartPanel({ onPick }: Props) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [ports, setPorts] = useState<PortInfo[] | null>(null);
   const [scanningPorts, setScanningPorts] = useState(false);
+  const [hideSystemPorts, setHideSystemPorts] = useState(true);
 
   const [scanPath, setScanPath] = useState<string>("");
   const [projects, setProjects] = useState<ProjectInfo[] | null>(null);
@@ -94,6 +95,24 @@ export function QuickStartPanel({ onPick }: Props) {
       runCommand: p.suggested_command ?? undefined,
     });
   };
+
+  const visiblePorts = useMemo(() => {
+    if (!ports) return [];
+    if (!hideSystemPorts) return ports;
+    const NOISE = new Set([
+      "svchost", "system", "system idle process", "lsass", "services",
+      "spoolsv", "wininit", "smss", "csrss", "winlogon", "explorer",
+      "nginx", "hyperhost", "hyperhost-app",
+      "rundll32", "dllhost", "fontdrvhost", "searchhost",
+      "msmpeng", "vmcompute", "vmms",
+    ]);
+    return ports.filter((p) => {
+      if (p.port < 1024) return false;
+      const name = (p.process ?? "").toLowerCase();
+      if (!name) return true;
+      return !NOISE.has(name);
+    });
+  }, [ports, hideSystemPorts]);
 
   const templateCategories = useMemo(() => {
     const groups: Record<string, Template[]> = {};
@@ -188,36 +207,59 @@ export function QuickStartPanel({ onPick }: Props) {
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs text-text-muted">
-                    Quét các cổng dev phổ biến (3000, 5173, 8000, 8080…) trên 127.0.0.1.
+                    Liệt kê tất cả TCP port đang lắng nghe trên 127.0.0.1 cùng tên process.
                   </p>
-                  <button
-                    onClick={handleScanPorts}
-                    disabled={scanningPorts}
-                    className="shrink-0 px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white hover:bg-accent-hover disabled:opacity-50 cursor-pointer transition-all">
-                    {scanningPorts ? "Đang quét…" : ports ? "Quét lại" : "Quét ngay"}
-                  </button>
+                  <div className="shrink-0 flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 text-[11px] text-text-muted cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={hideSystemPorts}
+                        onChange={(e) => setHideSystemPorts(e.target.checked)}
+                        className="accent-accent"
+                      />
+                      Ẩn system / nginx
+                    </label>
+                    <button
+                      onClick={handleScanPorts}
+                      disabled={scanningPorts}
+                      className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white hover:bg-accent-hover disabled:opacity-50 cursor-pointer transition-all">
+                      {scanningPorts ? "Đang quét…" : ports ? "Quét lại" : "Quét ngay"}
+                    </button>
+                  </div>
                 </div>
 
-                {ports !== null && ports.length === 0 && (
+                {ports !== null && visiblePorts.length === 0 && (
                   <p className="text-sm text-text-muted italic py-4 text-center bg-surface rounded-lg border border-dashed border-surface-3/40">
-                    Không có cổng dev nào đang lắng nghe.
+                    {ports.length === 0
+                      ? "Không có port nào đang lắng nghe."
+                      : "Tất cả port đều bị ẩn — bỏ chọn lọc để xem."}
                   </p>
                 )}
 
-                {ports && ports.length > 0 && (
+                {visiblePorts.length > 0 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {ports.map((p) => (
+                    {visiblePorts.map((p) => (
                       <button
                         key={p.port}
                         onClick={() => pickPort(p)}
-                        className="flex items-center justify-between p-3 rounded-lg bg-surface border border-surface-3/40 hover:border-accent/40 hover:bg-accent/5 transition-all cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          <span className="font-mono font-bold text-accent text-sm">:{p.port}</span>
-                          {p.guess && (
-                            <span className="text-xs text-text-muted">{p.guess}</span>
-                          )}
+                        className="group flex items-center justify-between p-3 rounded-lg bg-surface border border-surface-3/40 hover:border-accent/40 hover:bg-accent/5 transition-all cursor-pointer text-left">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="font-mono font-bold text-accent text-sm shrink-0">:{p.port}</span>
+                          <div className="min-w-0">
+                            {p.process && (
+                              <div className="text-xs font-semibold text-text truncate">
+                                {p.process}
+                                {p.pid !== null && (
+                                  <span className="ml-1.5 text-[10px] font-mono text-text-muted/70">pid {p.pid}</span>
+                                )}
+                              </div>
+                            )}
+                            {p.guess && (
+                              <div className="text-[11px] text-text-muted truncate">{p.guess}</div>
+                            )}
+                          </div>
                         </div>
-                        <span className="text-[10px] uppercase tracking-wider font-bold text-text-muted group-hover:text-accent">
+                        <span className="text-[10px] uppercase tracking-wider font-bold text-text-muted group-hover:text-accent shrink-0 ml-2">
                           Dùng →
                         </span>
                       </button>

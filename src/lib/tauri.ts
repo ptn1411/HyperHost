@@ -56,6 +56,8 @@ export interface Template {
 export interface PortInfo {
   port: number;
   guess: string | null;
+  pid: number | null;
+  process: string | null;
 }
 
 export interface ProjectInfo {

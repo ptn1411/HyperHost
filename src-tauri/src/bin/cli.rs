@@ -6,7 +6,7 @@ use comfy_table::{
 #[derive(Parser)]
 #[command(
     name = "hyh",
-    version = "0.2.1",
+    version = "0.4.1",
     about = "⚡ HyperHost CLI — Local HTTPS domain manager",
     long_about = "Manage local virtual domains with HTTPS certificates.\nAdd domains like myapp.test that proxy to your dev server with trusted SSL.\n\nUsage: hyh add myapp.test http://127.0.0.1:3000"
 )]
@@ -148,7 +148,9 @@ fn cmd_add(
 
     // Save to DB
     let expiry = chrono::Utc::now()
-        .checked_add_signed(chrono::Duration::days(hyperhost_lib::cert::ca::CERT_VALIDITY_DAYS))
+        .checked_add_signed(chrono::Duration::days(
+            hyperhost_lib::cert::ca::CERT_VALIDITY_DAYS,
+        ))
         .map(|d| d.to_rfc3339());
 
     let cfg = hyperhost_lib::db::DomainConfig {
@@ -304,13 +306,23 @@ fn cmd_ca(state: &hyperhost_lib::state::AppState, action: CaAction) -> anyhow::R
         CaAction::Install => {
             let result = {
                 #[cfg(target_os = "windows")]
-                { hyperhost_lib::cert::windows_store::install_ca(&ca_cert) }
+                {
+                    hyperhost_lib::cert::windows_store::install_ca(&ca_cert)
+                }
                 #[cfg(target_os = "macos")]
-                { hyperhost_lib::cert::macos_store::install_ca(&ca_cert) }
+                {
+                    hyperhost_lib::cert::macos_store::install_ca(&ca_cert)
+                }
                 #[cfg(target_os = "linux")]
-                { hyperhost_lib::cert::linux_store::install_ca(&ca_cert) }
+                {
+                    hyperhost_lib::cert::linux_store::install_ca(&ca_cert)
+                }
                 #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-                { Err(anyhow::anyhow!("CA installation not supported on this platform")) }
+                {
+                    Err(anyhow::anyhow!(
+                        "CA installation not supported on this platform"
+                    ))
+                }
             };
             result?;
 
@@ -326,17 +338,29 @@ fn cmd_ca(state: &hyperhost_lib::state::AppState, action: CaAction) -> anyhow::R
         CaAction::Status => {
             let installed = {
                 #[cfg(target_os = "windows")]
-                { hyperhost_lib::cert::windows_store::is_ca_installed(&ca_cert) }
+                {
+                    hyperhost_lib::cert::windows_store::is_ca_installed(&ca_cert)
+                }
                 #[cfg(target_os = "macos")]
-                { hyperhost_lib::cert::macos_store::is_ca_installed(&ca_cert) }
+                {
+                    hyperhost_lib::cert::macos_store::is_ca_installed(&ca_cert)
+                }
                 #[cfg(target_os = "linux")]
-                { hyperhost_lib::cert::linux_store::is_ca_installed(&ca_cert) }
+                {
+                    hyperhost_lib::cert::linux_store::is_ca_installed(&ca_cert)
+                }
                 #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-                { false }
+                {
+                    false
+                }
             };
             println!(
                 "CA: {}",
-                if installed { "🟢 installed & trusted" } else { "⚫ not installed" }
+                if installed {
+                    "🟢 installed & trusted"
+                } else {
+                    "⚫ not installed"
+                }
             );
             if let Some(fp) = state.ca.fingerprint() {
                 println!("SHA-256: {}", fp);

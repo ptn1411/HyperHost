@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, PortInfo, ProjectInfo, Template } from "../lib/tauri";
+import { i18n } from "../translation";
 
 export interface QuickStartSelection {
   domain: string;
@@ -131,9 +132,9 @@ export function QuickStartPanel({ onPick }: Props) {
           <svg className="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
-          <span className="text-sm font-semibold text-text">Quick Start</span>
+          <span className="text-sm font-semibold text-text">{i18n.t("quickStartTitle")}</span>
           <span className="text-xs text-text-muted">
-            Templates · Port scan · Project scan
+            {i18n.t("quickStartSubtitle")}
           </span>
         </div>
         <svg
@@ -156,9 +157,9 @@ export function QuickStartPanel({ onPick }: Props) {
                     ? "bg-surface text-text shadow-sm"
                     : "text-text-muted hover:text-text cursor-pointer"
                 }`}>
-                {k === "templates" && "Templates"}
-                {k === "ports" && "Ports đang mở"}
-                {k === "projects" && "Quét dự án"}
+                {k === "templates" && i18n.t("quickStartTabTemplates")}
+                {k === "ports" && i18n.t("quickStartTabPorts")}
+                {k === "projects" && i18n.t("quickStartTabProjects")}
               </button>
             ))}
           </div>
@@ -167,10 +168,10 @@ export function QuickStartPanel({ onPick }: Props) {
             {tab === "templates" && (
               <div className="space-y-5">
                 <p className="text-xs text-text-muted">
-                  Chọn preset để tự điền upstream. Các stack có HMR/WebSocket sẽ mở sẵn editor với nginx snippet phù hợp.
+                  {i18n.t("quickStartTemplateDesc")}
                 </p>
                 {templates.length === 0 && (
-                  <p className="text-xs text-text-muted italic">Loading…</p>
+                  <p className="text-xs text-text-muted italic">{i18n.t("quickStartLoading")}</p>
                 )}
                 {templateCategories.map(([cat, items]) => (
                   <div key={cat}>
@@ -207,7 +208,7 @@ export function QuickStartPanel({ onPick }: Props) {
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs text-text-muted">
-                    Liệt kê tất cả TCP port đang lắng nghe trên 127.0.0.1 cùng tên process.
+                    {i18n.t("quickStartPortDesc")}
                   </p>
                   <div className="shrink-0 flex items-center gap-2">
                     <label className="flex items-center gap-1.5 text-[11px] text-text-muted cursor-pointer">
@@ -223,7 +224,7 @@ export function QuickStartPanel({ onPick }: Props) {
                       onClick={handleScanPorts}
                       disabled={scanningPorts}
                       className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white hover:bg-accent-hover disabled:opacity-50 cursor-pointer transition-all">
-                      {scanningPorts ? "Đang quét…" : ports ? "Quét lại" : "Quét ngay"}
+                      {scanningPorts ? i18n.t("quickStartScanning") : ports ? i18n.t("quickStartRescan") : i18n.t("quickStartScanNow")}
                     </button>
                   </div>
                 </div>
@@ -231,8 +232,8 @@ export function QuickStartPanel({ onPick }: Props) {
                 {ports !== null && visiblePorts.length === 0 && (
                   <p className="text-sm text-text-muted italic py-4 text-center bg-surface rounded-lg border border-dashed border-surface-3/40">
                     {ports.length === 0
-                      ? "Không có port nào đang lắng nghe."
-                      : "Tất cả port đều bị ẩn — bỏ chọn lọc để xem."}
+                      ? i18n.t("quickStartNoPort")
+                      : i18n.t("quickStartAllHidden")}
                   </p>
                 )}
 
@@ -260,7 +261,7 @@ export function QuickStartPanel({ onPick }: Props) {
                           </div>
                         </div>
                         <span className="text-[10px] uppercase tracking-wider font-bold text-text-muted group-hover:text-accent shrink-0 ml-2">
-                          Dùng →
+                          {i18n.t("quickStartUse")}
                         </span>
                       </button>
                     ))}
@@ -272,7 +273,7 @@ export function QuickStartPanel({ onPick }: Props) {
             {tab === "projects" && (
               <div className="space-y-3">
                 <p className="text-xs text-text-muted">
-                  Quét thư mục để tìm các dự án Node / Rust / Go / Django / Laravel / Rails… Nhận diện port mặc định theo framework.
+                  {i18n.t("quickStartProjectDesc")}
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -287,7 +288,7 @@ export function QuickStartPanel({ onPick }: Props) {
                     onClick={handleScanProjects}
                     disabled={scanningProjects || !scanPath.trim()}
                     className="px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-white hover:bg-accent-hover disabled:opacity-50 cursor-pointer transition-all">
-                    {scanningProjects ? "Đang quét…" : "Quét"}
+                    {scanningProjects ? i18n.t("quickStartScanning") : i18n.t("quickStartScan")}
                   </button>
                 </div>
 
@@ -299,7 +300,7 @@ export function QuickStartPanel({ onPick }: Props) {
 
                 {projects !== null && projects.length === 0 && !scanError && (
                   <p className="text-sm text-text-muted italic py-4 text-center bg-surface rounded-lg border border-dashed border-surface-3/40">
-                    Không tìm thấy dự án nào trong thư mục này.
+                    {i18n.t("quickStartNoProject")}
                   </p>
                 )}
 
@@ -388,7 +389,7 @@ function ProjectRow({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              Run
+              {i18n.t("btnRun")}
             </button>
           )}
 

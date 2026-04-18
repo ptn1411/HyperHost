@@ -1,132 +1,158 @@
-# Contributing to HyperHost
+# Đóng góp cho HyperHost
 
-Thank you for your interest in contributing to **HyperHost** — a Local HTTPS Domain Manager built with Tauri v2, Rust, React, and TypeScript.
+Cảm ơn bạn đã quan tâm đến việc đóng góp cho **HyperHost** — công cụ quản lý HTTPS Domain cục bộ được xây dựng bằng Tauri v2, Rust, React và TypeScript.
 
-## Table of Contents
+## Mục lục
 
-- [Getting Started](#getting-started)
-- [Development Setup](#development-setup)
-- [Project Structure](#project-structure)
-- [How to Contribute](#how-to-contribute)
-- [Commit Convention](#commit-convention)
-- [Pull Request Guidelines](#pull-request-guidelines)
-- [Reporting Issues](#reporting-issues)
+- [Bắt đầu](#bắt-đầu)
+- [Thiết lập môi trường phát triển](#thiết-lập-môi-trường-phát-triển)
+- [Cấu trúc dự án](#cấu-trúc-dự-án)
+- [Cách đóng góp](#cách-đóng-góp)
+- [Quy ước commit](#quy-ước-commit)
+- [Hướng dẫn Pull Request](#hướng-dẫn-pull-request)
+- [Báo cáo lỗi](#báo-cáo-lỗi)
 
-## Getting Started
+## Bắt đầu
 
-1. **Fork** the repository on GitHub
-2. **Clone** your fork locally:
+1. **Fork** repository trên GitHub
+2. **Clone** fork về máy:
    ```bash
    git clone https://github.com/YOUR_USERNAME/HyperHost.git
    cd HyperHost
    ```
-3. Add the upstream remote:
+3. Thêm upstream remote:
    ```bash
    git remote add upstream https://github.com/ptn1411/HyperHost.git
    ```
 
-## Development Setup
+## Thiết lập môi trường phát triển
 
-### Prerequisites
+### Yêu cầu
 
-- [Node.js](https://nodejs.org/) >= 18
+- [Node.js](https://nodejs.org/) >= 20
 - [Rust](https://rustup.rs/) (stable toolchain)
 - [Tauri CLI v2](https://tauri.app/start/prerequisites/)
 
-On Windows, you also need:
+Trên Windows, bạn cần thêm:
 - Microsoft Visual Studio Build Tools (C++ workload)
 - WebView2 Runtime
 
-### Install Dependencies
+Trên macOS:
+```bash
+brew install nginx
+```
+
+Trên Linux (Debian/Ubuntu):
+```bash
+sudo apt install nginx libgtk-3-dev
+```
+
+### Cài đặt dependencies
 
 ```bash
 npm install
 ```
 
-### Run in Development Mode
+### Chạy chế độ phát triển
+
+> **Lưu ý:** Cần quyền Administrator / sudo vì app ghi file `hosts` và quản lý nginx.
 
 ```bash
 npm run tauri dev
 ```
 
-### Build for Production
+### Build bản production
 
 ```bash
 npm run tauri build
 ```
 
-### Run Frontend Only (Vite)
+### Chỉ chạy Frontend (Vite)
 
 ```bash
 npm run dev
 ```
 
-## Project Structure
+### Build CLI riêng (không cần GUI)
+
+```bash
+cd src-tauri
+cargo build --release --bin hyh --no-default-features
+```
+
+## Cấu trúc dự án
 
 ```
 HyperHost/
 ├── src/                    # React + TypeScript frontend
-├── src-tauri/              # Rust backend (Tauri)
+├── src-tauri/              # Rust backend (Tauri v2)
 │   ├── src/
 │   │   ├── bin/cli.rs      # CLI binary (hyh)
-│   │   └── ...             # Core domain management logic
+│   │   ├── cert/           # Quản lý chứng chỉ CA & HTTPS
+│   │   ├── nginx/          # Sinh & quản lý config nginx
+│   │   ├── dns/            # Quản lý hosts file
+│   │   ├── cloudflare/     # Cloudflare Tunnel integration
+│   │   ├── db/             # SQLite database
+│   │   ├── ipc/            # Tauri IPC commands
+│   │   └── ...
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 ├── package.json
 └── tsconfig.json
 ```
 
-## How to Contribute
+## Cách đóng góp
 
-### Fixing Bugs
+### Sửa lỗi
 
-- Check [existing issues](https://github.com/ptn1411/HyperHost/issues) first
-- Create a new issue describing the bug before submitting a fix
+- Kiểm tra [các issue hiện có](https://github.com/ptn1411/HyperHost/issues) trước
+- Tạo issue mô tả lỗi trước khi gửi bản sửa
 
-### Adding Features
+### Thêm tính năng mới
 
-- Open an issue to discuss the feature before implementing
-- Keep changes focused — one feature per PR
+- Mở issue thảo luận tính năng trước khi bắt đầu code
+- Giữ thay đổi tập trung — mỗi PR chỉ một tính năng
 
-### Improving Documentation
+### Cải thiện tài liệu
 
-Documentation improvements are always welcome. No issue required for typo fixes or small clarifications.
+Luôn chào đón mọi cải thiện về tài liệu. Không cần issue cho các bản sửa lỗi chính tả hoặc làm rõ nhỏ.
 
-## Commit Convention
+## Quy ước commit
 
-Use [Conventional Commits](https://www.conventionalcommits.org/):
+Sử dụng [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
-feat: add mkcert auto-renewal support
-fix: resolve nginx config path on Windows
-docs: update development setup instructions
-refactor: simplify domain validation logic
-chore: bump Tauri to v2.x
+feat: thêm tự động gia hạn chứng chỉ mkcert
+fix: sửa đường dẫn nginx config trên Windows
+docs: cập nhật hướng dẫn thiết lập phát triển
+refactor: đơn giản hóa logic kiểm tra domain
+chore: nâng Tauri lên v2.x
 ```
 
-## Pull Request Guidelines
+## Hướng dẫn Pull Request
 
-- Branch from `main` and target `main`
-- Keep PRs small and focused
-- Include a clear description of what changed and why
-- Ensure the project builds without errors:
+- Branch từ `main` và target về `main`
+- Giữ PR nhỏ gọn và tập trung
+- Mô tả rõ ràng những gì đã thay đổi và lý do
+- Đảm bảo dự án build không lỗi:
   ```bash
   npm run build
   cargo check --manifest-path src-tauri/Cargo.toml
   ```
-- Reference the related issue in the PR description (`Closes #123`)
+- Tham chiếu issue liên quan trong mô tả PR (`Closes #123`)
 
-## Reporting Issues
+## Báo cáo lỗi
 
-Use [GitHub Issues](https://github.com/ptn1411/HyperHost/issues) and include:
+Sử dụng [GitHub Issues](https://github.com/ptn1411/HyperHost/issues) và bao gồm:
 
-- OS and version (Windows 10/11, macOS, Linux distro)
-- HyperHost version
-- Steps to reproduce
-- Expected vs actual behavior
-- Relevant logs or screenshots
+- Hệ điều hành và phiên bản (Windows 10/11, macOS, Linux distro)
+- Phiên bản HyperHost
+- Các bước tái hiện lỗi
+- Kết quả mong đợi so với kết quả thực tế
+- Log hoặc ảnh chụp màn hình (nếu có)
 
-## License
+> ⚠️ Đối với **lỗ hổng bảo mật**, vui lòng **không** mở issue công khai. Xem [SECURITY.md](SECURITY.md) để biết cách báo cáo riêng tư.
 
-By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).
+## Giấy phép
 
+Bằng việc đóng góp, bạn đồng ý rằng các đóng góp của bạn sẽ được cấp phép theo [Giấy phép MIT](LICENSE).

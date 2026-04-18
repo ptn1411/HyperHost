@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import { api } from "../lib/tauri";
+import { i18n } from "../translation";
 
 interface NginxEditorModeProps {
   initialDomain?: string;
@@ -186,7 +187,7 @@ export function NginxEditorMode({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-xl font-bold text-text flex items-center gap-2">
             <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-            {isEditing ? `Chỉnh sửa Domain: ${initialDomain}` : "Tạo cấu hình Proxy Mới"}
+            {isEditing ? i18n.t("editorTitleEdit", { domain: initialDomain }) : i18n.t("editorTitleNew")}
           </h2>
           <div className="flex gap-3">
             <button
@@ -198,7 +199,7 @@ export function NginxEditorMode({
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
-              Import từ prod
+              {i18n.t("editorBtnImport")}
             </button>
             <button
               type="button"
@@ -213,7 +214,7 @@ export function NginxEditorMode({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
               )}
-              Validate (nginx -t)
+              {i18n.t("editorBtnValidate")}
             </button>
             {isEditing && projectPath.trim() && (
               <button
@@ -225,7 +226,7 @@ export function NginxEditorMode({
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Export sang project
+                {i18n.t("editorBtnExport")}
               </button>
             )}
             {isEditing && (
@@ -235,7 +236,7 @@ export function NginxEditorMode({
                 disabled={loading}
                 className="px-4 py-2 text-sm font-semibold rounded-lg text-text-muted hover:text-white hover:bg-surface-3 transition-colors disabled:opacity-50"
               >
-                Hủy biên tập
+                {i18n.t("editorBtnCancelEdit")}
               </button>
             )}
             <button
@@ -248,14 +249,14 @@ export function NginxEditorMode({
               ) : (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
               )}
-              {isEditing ? "Cập nhật Config" : "Tạo Route"}
+              {isEditing ? i18n.t("editorBtnUpdate") : i18n.t("editorBtnCreate")}
             </button>
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row gap-5">
           <div className="flex-1">
-            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">Local Domain Khách (ví dụ: myapp.test)</label>
+            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">{i18n.t("editorLabelDomain")}</label>
             <div className="relative">
               <span className="absolute left-3.5 top-2.5 text-text-muted/50">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
@@ -270,7 +271,7 @@ export function NginxEditorMode({
             </div>
           </div>
           <div className="flex-1">
-            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">Upstream Đích (ví dụ: http://127.0.0.1:8080)</label>
+            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">{i18n.t("editorLabelUpstream")}</label>
             <div className="relative">
               <span className="absolute left-3.5 top-2.5 text-text-muted/50">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
@@ -289,7 +290,7 @@ export function NginxEditorMode({
         <div className="flex flex-col md:flex-row gap-5 mt-5">
           <div className="flex-1">
             <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">
-              Thư mục dự án (tùy chọn)
+              {i18n.t("editorLabelProjectPath")}
             </label>
             <div className="relative">
               <span className="absolute left-3.5 top-2.5 text-text-muted/50">
@@ -306,7 +307,7 @@ export function NginxEditorMode({
           </div>
           <div className="flex-1">
             <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">
-              Lệnh Run (tùy chọn)
+              {i18n.t("editorLabelRunCommand")}
             </label>
             <div className="relative">
               <span className="absolute left-3.5 top-2.5 text-text-muted/50">
@@ -402,7 +403,7 @@ export function NginxEditorMode({
       {importOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setImportOpen(false)}>
           <div className="bg-surface-2 border border-surface-3 rounded-2xl shadow-2xl p-6 w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-text mb-2">Import nginx config từ prod</h3>
+            <h3 className="text-lg font-bold text-text mb-2">{i18n.t("editorImportTitle")}</h3>
             <p className="text-xs text-text-muted mb-4">
               Dán nội dung file <code className="bg-surface-3/30 px-1 py-0.5 rounded font-mono">.conf</code> của bạn. Tool sẽ tự strip SSL/listen/server_name và rewrite <code className="bg-surface-3/30 px-1 py-0.5 rounded font-mono">proxy_pass</code> thành <code className="bg-surface-3/30 px-1 py-0.5 rounded font-mono">$UPSTREAM</code>.
             </p>
@@ -420,13 +421,13 @@ export function NginxEditorMode({
               <button
                 onClick={() => { setImportOpen(false); setImportError(null); }}
                 className="px-4 py-2 rounded-lg text-sm font-semibold text-text-muted bg-surface-3/50 hover:bg-surface-3 transition-colors cursor-pointer">
-                Hủy
+                {i18n.t("btnCancel")}
               </button>
               <button
                 onClick={handleImportApply}
                 disabled={importBusy || !importText.trim()}
                 className="px-5 py-2 rounded-lg text-sm font-bold text-white bg-accent hover:bg-accent-hover disabled:opacity-50 transition-all cursor-pointer">
-                {importBusy ? "Đang xử lý…" : "Convert & Áp dụng"}
+                {importBusy ? i18n.t("editorImportProcessing") : i18n.t("editorImportBtn")}
               </button>
             </div>
           </div>
@@ -436,11 +437,11 @@ export function NginxEditorMode({
       {exportOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setExportOpen(false)}>
           <div className="bg-surface-2 border border-surface-3 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-text mb-2">Export sang thư mục dự án</h3>
+            <h3 className="text-lg font-bold text-text mb-2">{i18n.t("editorExportTitle")}</h3>
             <p className="text-xs text-text-muted mb-4">
               Ghi file <code className="bg-surface-3/30 px-1 py-0.5 rounded font-mono">{`<project>/nginx/<prod-domain>.conf`}</code> đã strip SSL (để Certbot tự thêm trên prod).
             </p>
-            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-1.5 uppercase">Prod Domain</label>
+            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-1.5 uppercase">{i18n.t("editorExportLabelDomain")}</label>
             <input
               type="text"
               value={exportProdDomain}
@@ -448,7 +449,7 @@ export function NginxEditorMode({
               placeholder="myapp.example.com"
               className="w-full px-3 py-2 rounded-lg bg-surface border border-surface-3 text-text font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 mb-3"
             />
-            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-1.5 uppercase">Prod Upstream</label>
+            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-1.5 uppercase">{i18n.t("editorExportLabelUpstream")}</label>
             <input
               type="text"
               value={exportProdUpstream}
@@ -468,13 +469,13 @@ export function NginxEditorMode({
               <button
                 onClick={() => setExportOpen(false)}
                 className="px-4 py-2 rounded-lg text-sm font-semibold text-text-muted bg-surface-3/50 hover:bg-surface-3 transition-colors cursor-pointer">
-                Đóng
+                {i18n.t("editorBtnClose")}
               </button>
               <button
                 onClick={handleExportApply}
                 disabled={exportBusy || !exportProdDomain.trim() || !exportProdUpstream.trim()}
                 className="px-5 py-2 rounded-lg text-sm font-bold text-white bg-accent hover:bg-accent-hover disabled:opacity-50 transition-all cursor-pointer">
-                {exportBusy ? "Đang ghi…" : "Xuất file"}
+                {exportBusy ? i18n.t("editorExportWriting") : i18n.t("editorExportBtn")}
               </button>
             </div>
           </div>

@@ -1,33 +1,45 @@
 pub mod named_tunnel;
 
+// Quick-tunnel (TryCloudflare) manager uses Tauri's event emitter for
+// progress updates; CLI builds without the `gui` feature skip it.
+#[cfg(feature = "gui")]
 use std::collections::HashMap;
+#[cfg(feature = "gui")]
 use std::io::{BufRead, BufReader};
+#[cfg(feature = "gui")]
 use std::process::{Child, Command, Stdio};
+#[cfg(feature = "gui")]
 use std::sync::{Arc, Mutex};
+#[cfg(feature = "gui")]
 use tauri::{AppHandle, Emitter};
 
+#[cfg(feature = "gui")]
 #[derive(Clone, serde::Serialize)]
 struct TunnelReadyPayload {
     domain: String,
     url: String,
 }
 
+#[cfg(feature = "gui")]
 #[derive(Clone, serde::Serialize)]
 struct TunnelErrorPayload {
     domain: String,
     error: String,
 }
 
+#[cfg(feature = "gui")]
 struct TunnelEntry {
     child: Child,
     /// Public URL đã được assign bởi TryCloudflare (nếu đã nhận được)
     public_url: Option<String>,
 }
 
+#[cfg(feature = "gui")]
 pub struct CloudflaredManager {
     processes: Arc<Mutex<HashMap<String, TunnelEntry>>>,
 }
 
+#[cfg(feature = "gui")]
 impl CloudflaredManager {
     pub fn new() -> Self {
         Self {
@@ -133,6 +145,7 @@ impl CloudflaredManager {
     }
 }
 
+#[cfg(feature = "gui")]
 impl Drop for CloudflaredManager {
     fn drop(&mut self) {
         self.stop_all();
@@ -142,6 +155,7 @@ impl Drop for CloudflaredManager {
 /// Đọc stderr của cloudflared để bắt TryCloudflare URL.
 /// Khi tìm thấy URL, lưu vào map và emit event đến frontend.
 /// Thread tự kết thúc khi pipe đóng (process bị kill hoặc crash).
+#[cfg(feature = "gui")]
 fn read_stderr_for_url(
     stderr: impl std::io::Read,
     domain: &str,
@@ -226,6 +240,7 @@ fn read_stderr_for_url(
 
 /// Parse TryCloudflare URL từ một dòng log.
 /// Cloudflare log format: `... | https://some-words.trycloudflare.com |...`
+#[cfg(feature = "gui")]
 fn extract_trycloudflare_url(line: &str) -> Option<String> {
     let start = line.find("https://")?;
     let rest = &line[start..];

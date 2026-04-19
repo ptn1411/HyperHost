@@ -406,7 +406,7 @@ function App() {
             </h1>
             <p className="text-text-muted mt-2 text-sm">
               {t("headerSubtitle")} •{" "}
-              <span className="font-mono text-xs">v0.4.1</span>
+              <span className="font-mono text-xs">v0.4.2</span>
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -511,16 +511,16 @@ function App() {
         )}
 
         {/* Inline banners — only on narrow screens where side ads are hidden */}
-        <div className="xl:hidden grid grid-cols-2 gap-3 mb-6">
+        <div className="xl:hidden flex justify-center gap-4 mb-6">
           <a
             href="https://portal.vpsre.net/aff.php?aff=93"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="VPS affiliate"
-            className="block rounded-xl overflow-hidden shadow-lg border border-surface-3/40 hover:shadow-2xl hover:scale-[1.01] transition-all">
+            className="block w-[280px] rounded-xl overflow-hidden shadow-lg border border-surface-3/40 hover:shadow-2xl hover:scale-[1.01] transition-all">
             <img src="/VPS.png" alt="VPS" className="block w-full h-auto" />
           </a>
-          <div className="relative rounded-xl overflow-hidden shadow-lg border border-surface-3/40 hover:shadow-2xl transition-all">
+          <div className="relative w-[280px] rounded-xl overflow-hidden shadow-lg border border-surface-3/40 hover:shadow-2xl transition-all">
             <img src="/tinomail-banner-7.jpg" alt="Tino" className="block w-full h-auto" />
             <a
               href="https://tino.vn?php=923"

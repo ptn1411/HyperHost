@@ -1,6 +1,6 @@
 [package]
 name = "hyperhost"
-version = "0.4.0"
+version = "0.4.2"
 description = "Local HTTPS Domain Manager"
 authors = ["NAM"]
 edition = "2021"

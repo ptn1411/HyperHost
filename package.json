@@ -1,7 +1,7 @@
 {
   "name": "hyperhost",
   "private": true,
-  "version": "0.4.1",
+  "version": "0.4.2",
   "type": "module",
   "author": "ptn1411",
   "license": "MIT",

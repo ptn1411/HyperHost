@@ -14,16 +14,16 @@ pub struct NginxInfo {
 
 #[tauri::command]
 pub async fn add_domain(
-    domain: String,
+    mut domain: String,
     upstream: String,
     advanced_config: Option<String>,
     project_path: Option<String>,
     run_command: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<DomainStatus, String> {
-    // Validate
+    domain = domain.trim().to_string();
     if !domain.ends_with(".test") && !domain.ends_with(".local") {
-        return Err("Domain must end with .test or .local".into());
+        domain.push_str(".test");
     }
     if !upstream.starts_with("http://") && !upstream.starts_with("https://") {
         return Err("Upstream must start with http:// or https://".into());
@@ -110,16 +110,16 @@ pub async fn add_domain(
 #[tauri::command]
 pub async fn edit_domain(
     old_domain: String,
-    domain: String,
+    mut domain: String,
     upstream: String,
     advanced_config: Option<String>,
     project_path: Option<String>,
     run_command: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<DomainStatus, String> {
-    // Validate new values
+    domain = domain.trim().to_string();
     if !domain.ends_with(".test") && !domain.ends_with(".local") {
-        return Err("Domain must end with .test or .local".into());
+        domain.push_str(".test");
     }
     if !upstream.starts_with("http://") && !upstream.starts_with("https://") {
         return Err("Upstream must start with http:// or https://".into());

@@ -48,6 +48,11 @@ impl NginxManager {
     /// Zero-downtime config reload.
     /// Validates config with `nginx -t` first to prevent downtime on bad config.
     pub fn reload(&self) -> anyhow::Result<()> {
+        if !self.is_running() {
+            tracing::info!("nginx not running, reload skipped");
+            return Ok(());
+        }
+
         // Pre-flight: validate config before applying
         self.test_config().map_err(|e| {
             anyhow::anyhow!("nginx config validation failed, reload aborted:\n{}", e)
@@ -69,6 +74,10 @@ impl NginxManager {
     }
 
     pub fn stop(&self) -> anyhow::Result<()> {
+        if !self.is_running() {
+            return Ok(());
+        }
+
         let conf_str = self.conf.to_str().unwrap().replace('\\', "/");
         let prefix_str = self.prefix.to_str().unwrap().replace('\\', "/");
 
@@ -158,20 +167,25 @@ impl NginxManager {
         let conf_str = self.conf.to_str().unwrap().replace('\\', "/");
         let prefix_str = self.prefix.to_str().unwrap().replace('\\', "/");
 
-        // 1. Try graceful stop via nginx signal — only if conf file exists,
-        //    otherwise nginx will error trying to read {prefix}/conf/nginx.conf
-        let quit_result = if self.conf.exists() {
-            Command::new(&self.exe)
-                .args(["-c", &conf_str, "-p", &prefix_str, "-s", "quit"])
-                .output()
-        } else {
-            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "conf not yet written"))
-        };
+        let pid_opt = self.read_pid_file();
+        let is_alive = pid_opt.map(|pid| Self::is_pid_alive(pid)).unwrap_or(false);
 
-        if let Ok(output) = &quit_result {
-            if output.status.success() {
-                tracing::info!("Sent quit signal to stale nginx");
-                std::thread::sleep(std::time::Duration::from_millis(500));
+        if is_alive {
+            // 1. Try graceful stop via nginx signal — only if conf file exists,
+            //    otherwise nginx will error trying to read {prefix}/conf/nginx.conf
+            let quit_result = if self.conf.exists() {
+                Command::new(&self.exe)
+                    .args(["-c", &conf_str, "-p", &prefix_str, "-s", "quit"])
+                    .output()
+            } else {
+                Err(std::io::Error::new(std::io::ErrorKind::NotFound, "conf not yet written"))
+            };
+
+            if let Ok(output) = &quit_result {
+                if output.status.success() {
+                    tracing::info!("Sent quit signal to stale nginx");
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                }
             }
         }
 

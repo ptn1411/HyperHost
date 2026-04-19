@@ -53,6 +53,49 @@ http {{
             conf.push_str(&replaced);
             conf.push_str("\n");
         } else {
+            let adv_raw = d.advanced_config.as_deref().unwrap_or("");
+            let has_directive = |name: &str| {
+                adv_raw.lines().any(|l| {
+                    let t = l.trim_start();
+                    t.strip_prefix(name)
+                        .map(|rest| rest.starts_with(|c: char| c.is_whitespace()))
+                        .unwrap_or(false)
+                })
+            };
+            let has_set_header = |header: &str| {
+                adv_raw.lines().any(|l| {
+                    let t = l.trim_start();
+                    let Some(rest) = t.strip_prefix("proxy_set_header") else { return false };
+                    let rest = rest.trim_start();
+                    rest.strip_prefix(header)
+                        .map(|r| r.starts_with(|c: char| c.is_whitespace()))
+                        .unwrap_or(false)
+                })
+            };
+
+            let mut defaults = String::from("\n        # WebSocket support\n");
+            if !has_directive("proxy_http_version") {
+                defaults.push_str("        proxy_http_version 1.1;\n");
+            }
+            if !has_set_header("Upgrade") {
+                defaults.push_str("        proxy_set_header   Upgrade    $http_upgrade;\n");
+            }
+            if !has_set_header("Connection") {
+                defaults.push_str("        proxy_set_header   Connection \"upgrade\";\n");
+            }
+            if !has_set_header("Host") {
+                defaults.push_str("        proxy_set_header   Host       $host;\n");
+            }
+            if !has_set_header("X-Real-IP") {
+                defaults.push_str("        proxy_set_header   X-Real-IP  $remote_addr;\n");
+            }
+            if !has_directive("proxy_read_timeout") {
+                defaults.push_str("        proxy_read_timeout 300s;\n");
+            }
+            if !has_directive("proxy_send_timeout") {
+                defaults.push_str("        proxy_send_timeout 300s;\n");
+            }
+
             let cors_block = if d.cors_enabled {
                 r#"
             # CORS headers
@@ -84,16 +127,7 @@ http {{
         ssl_protocols       TLSv1.2 TLSv1.3;
         ssl_ciphers         HIGH:!aNULL:!MD5;
         ssl_session_cache   shared:SSL:1m;
-
-        # WebSocket support
-        proxy_http_version 1.1;
-        proxy_set_header   Upgrade    $http_upgrade;
-        proxy_set_header   Connection "upgrade";
-        proxy_set_header   Host       $host;
-        proxy_set_header   X-Real-IP  $remote_addr;
-        proxy_read_timeout 300s;
-        proxy_send_timeout 300s;
-{advanced_config}
+{defaults}{advanced_config}
 
         location / {{
             proxy_pass {upstream};
@@ -106,7 +140,8 @@ http {{
                 key = key,
                 upstream = d.upstream,
                 cors_block = cors_block,
-                advanced_config = d.advanced_config.as_deref().unwrap_or(""),
+                defaults = defaults,
+                advanced_config = adv_raw,
             ));
         }
     }

@@ -100,6 +100,14 @@ pub async fn add_domain(
     // 5. Regenerate nginx config + reload
     rebuild_nginx(&state).map_err(|e| e.to_string())?;
 
+    // 6. Auto-install AI skills into project directory
+    if let Some(ref pp) = cfg.project_path {
+        let p = std::path::PathBuf::from(pp);
+        if p.is_dir() {
+            let _ = crate::skill::install_project_skills(&p);
+        }
+    }
+
     Ok(DomainStatus {
         config: cfg,
         cert_valid: true,
@@ -190,6 +198,14 @@ pub async fn edit_domain(
     let active = state.db.list_enabled_domains().map_err(|e| e.to_string())?;
     crate::dns::hosts::sync_hosts(&active).map_err(|e| e.to_string())?;
     rebuild_nginx(&state).map_err(|e| e.to_string())?;
+
+    // Auto-install AI skills into project directory
+    if let Some(ref pp) = cfg.project_path {
+        let p = std::path::PathBuf::from(pp);
+        if p.is_dir() {
+            let _ = crate::skill::install_project_skills(&p);
+        }
+    }
 
     Ok(DomainStatus {
         config: cfg,
@@ -999,6 +1015,19 @@ fn is_autostart_windows() -> bool {
     } else {
         false
     }
+}
+
+// ── AI Skill install ──
+
+#[tauri::command]
+pub async fn install_project_skills(
+    project_path: String,
+) -> Result<Vec<crate::skill::SkillInstallResult>, String> {
+    let p = std::path::PathBuf::from(&project_path);
+    if !p.is_dir() {
+        return Err(format!("Not a directory: {}", project_path));
+    }
+    Ok(crate::skill::install_project_skills(&p))
 }
 
 // ── Docker Compose ──

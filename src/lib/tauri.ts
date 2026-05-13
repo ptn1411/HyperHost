@@ -181,7 +181,17 @@ export const api = {
     invoke<string>("compose_logs", { projectPath, file, lines }),
   composeSaveFile: (projectPath: string, fileName: string, content: string) =>
     invoke<string>("compose_save_file", { projectPath, fileName, content }),
+
+  // AI Skill install
+  installProjectSkills: (projectPath: string) =>
+    invoke<SkillInstallResult[]>("install_project_skills", { projectPath }),
 };
+
+export interface SkillInstallResult {
+  target: string;
+  ok: boolean;
+  path: string;
+}
 
 export interface ImportedNginx {
   advanced_config: string;

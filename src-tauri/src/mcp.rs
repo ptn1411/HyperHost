@@ -329,6 +329,72 @@ fn tool_definitions() -> Vec<Value> {
                 "required": ["domain"]
             }),
         ),
+        // ── new tools ──
+        tool_def(
+            "ca_status",
+            "Check whether the HyperHost CA certificate is installed in the system trust store. Returns installation status and SHA-256 fingerprint.",
+            json!({ "type": "object", "properties": {} }),
+        ),
+        tool_def(
+            "ca_install",
+            "Install the HyperHost CA certificate into the system trust store. On Windows this triggers a UAC prompt. Required once for browsers to trust generated certs.",
+            json!({ "type": "object", "properties": {} }),
+        ),
+        tool_def(
+            "nginx_logs",
+            "Read recent nginx error log lines for debugging proxy issues.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "lines": { "type": "integer", "description": "number of lines to return (default 50)" }
+                }
+            }),
+        ),
+        tool_def(
+            "export_domains",
+            "Export all domain configurations as a JSON snapshot for backup or migration.",
+            json!({ "type": "object", "properties": {} }),
+        ),
+        tool_def(
+            "import_domains",
+            "Import domain configurations from a JSON string (produced by export_domains). Re-issues certificates for each domain.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "json_data": { "type": "string", "description": "JSON string with { \"domains\": [...] }" }
+                },
+                "required": ["json_data"]
+            }),
+        ),
+        tool_def(
+            "edit_domain",
+            "Update an existing domain's upstream URL or advanced nginx config without removing and re-adding it.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "domain":          { "type": "string", "description": "existing domain name" },
+                    "upstream":        { "type": "string", "description": "new upstream URL" },
+                    "advanced_config": { "type": "string", "description": "custom nginx location/server directives" }
+                },
+                "required": ["domain", "upstream"]
+            }),
+        ),
+        tool_def(
+            "elevation_status",
+            "Check whether the current process is running with administrative privileges. Useful for knowing if privileged operations (hosts file, CA install) will trigger a UAC prompt.",
+            json!({ "type": "object", "properties": {} }),
+        ),
+        tool_def(
+            "install_project_skills",
+            "Install HyperHost AI skill/instruction files into a project directory so AI CLIs (Claude Code, Gemini CLI, Codex CLI) auto-discover HyperHost when working in that project.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "project_path": { "type": "string", "description": "path to the project directory" }
+                },
+                "required": ["project_path"]
+            }),
+        ),
     ]
 }
 
@@ -384,6 +450,22 @@ fn run_tool(state: &AppState, name: &str, args: Value) -> anyhow::Result<Value> 
         "list_named_tunnels" => tool_list_named_tunnels(state),
         "add_named_tunnel" => tool_add_named_tunnel(state, &args),
         "open_domain" => tool_open_domain(&args),
+        "ca_status" => tool_ca_status(state),
+        "ca_install" => tool_ca_install(state),
+        "nginx_logs" => tool_nginx_logs(state, &args),
+        "export_domains" => tool_export_domains(state),
+        "import_domains" => tool_import_domains(state, &args),
+        "edit_domain" => tool_edit_domain(state, &args),
+        "elevation_status" => Ok(json!({ "is_admin": crate::elevation::is_admin() })),
+        "install_project_skills" => {
+            let pp = str_arg(&args, "project_path")?;
+            let p = std::path::PathBuf::from(&pp);
+            if !p.is_dir() {
+                anyhow::bail!("Not a directory: {}", pp);
+            }
+            let results = crate::skill::install_project_skills(&p);
+            Ok(json!({ "results": results }))
+        }
         _ => anyhow::bail!("unknown tool: {}", name),
     }
 }
@@ -642,6 +724,157 @@ fn tool_open_domain(args: &Value) -> anyhow::Result<Value> {
     let url = format!("https://{}", domain);
     open_url(&url)?;
     Ok(json!({ "opened": url }))
+}
+
+fn tool_ca_status(state: &AppState) -> anyhow::Result<Value> {
+    let ca_cert = state.paths.ca_cert();
+    let installed = {
+        #[cfg(target_os = "windows")]
+        { crate::cert::windows_store::is_ca_installed(&ca_cert) }
+        #[cfg(target_os = "macos")]
+        { crate::cert::macos_store::is_ca_installed(&ca_cert) }
+        #[cfg(target_os = "linux")]
+        { crate::cert::linux_store::is_ca_installed(&ca_cert) }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        { false }
+    };
+    Ok(json!({
+        "installed": installed,
+        "fingerprint": state.ca.fingerprint(),
+    }))
+}
+
+fn tool_ca_install(state: &AppState) -> anyhow::Result<Value> {
+    let ca_cert = state.paths.ca_cert();
+    let result = {
+        #[cfg(target_os = "windows")]
+        { crate::cert::windows_store::install_ca(&ca_cert) }
+        #[cfg(target_os = "macos")]
+        { crate::cert::macos_store::install_ca(&ca_cert) }
+        #[cfg(target_os = "linux")]
+        { crate::cert::linux_store::install_ca(&ca_cert) }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        { Err(anyhow::anyhow!("CA installation not supported on this platform")) }
+    };
+    result?;
+
+    if let Some(mkcert) = crate::cert::mkcert::MkcertRunner::find() {
+        let _ = mkcert.install_ca();
+    }
+
+    Ok(json!({ "ok": true }))
+}
+
+fn tool_nginx_logs(state: &AppState, args: &Value) -> anyhow::Result<Value> {
+    let lines = args.get("lines").and_then(|v| v.as_u64()).unwrap_or(50) as usize;
+    let log_path = state.paths.nginx_logs().join("error.log");
+    let content = std::fs::read_to_string(&log_path).unwrap_or_default();
+    let all: Vec<&str> = content.lines().collect();
+    let start = all.len().saturating_sub(lines);
+    Ok(json!({ "lines": &all[start..] }))
+}
+
+fn tool_export_domains(state: &AppState) -> anyhow::Result<Value> {
+    let domains = state.db.list_domains()?;
+    Ok(json!({
+        "version": 1,
+        "exported_at": chrono::Utc::now().to_rfc3339(),
+        "domains": domains,
+    }))
+}
+
+fn tool_import_domains(state: &AppState, args: &Value) -> anyhow::Result<Value> {
+    let data = str_arg(args, "json_data")?;
+    let parsed: Value = serde_json::from_str(&data)
+        .map_err(|e| anyhow::anyhow!("Invalid JSON: {}", e))?;
+    let list = parsed
+        .get("domains")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| anyhow::anyhow!("Missing `domains` array"))?;
+
+    let cert_dir = state.paths.cert_dir();
+    std::fs::create_dir_all(&cert_dir)?;
+    let mut count = 0usize;
+
+    for item in list {
+        let cfg: crate::db::DomainConfig = serde_json::from_value(item.clone())
+            .map_err(|e| anyhow::anyhow!("Invalid domain config: {}", e))?;
+
+        if !cfg.domain.ends_with(".test") && !cfg.domain.ends_with(".local") {
+            continue;
+        }
+        if !cfg.upstream.starts_with("http://") && !cfg.upstream.starts_with("https://") {
+            continue;
+        }
+
+        let (cert_pem, key_pem) = match state.ca.issue_for_domain(&cfg.domain) {
+            Ok(pair) => pair,
+            Err(e) => {
+                tracing::warn!("import: cert issue failed for {}: {}", cfg.domain, e);
+                continue;
+            }
+        };
+        let _ = std::fs::write(cert_dir.join(format!("{}.crt", cfg.domain)), &cert_pem);
+        let _ = std::fs::write(cert_dir.join(format!("{}.key", cfg.domain)), &key_pem);
+
+        let expiry = chrono::Utc::now()
+            .checked_add_signed(chrono::Duration::days(crate::cert::ca::CERT_VALIDITY_DAYS))
+            .map(|d| d.to_rfc3339());
+
+        let new_cfg = crate::db::DomainConfig {
+            id: None,
+            cert_expiry: expiry,
+            created_at: None,
+            ..cfg
+        };
+        if let Err(e) = state.db.upsert_domain(&new_cfg, &cert_pem, &key_pem) {
+            tracing::warn!("import: DB upsert failed for {}: {}", new_cfg.domain, e);
+            continue;
+        }
+        count += 1;
+    }
+
+    if count > 0 {
+        sync_and_reload(state)?;
+    }
+    Ok(json!({ "ok": true, "imported": count }))
+}
+
+fn tool_edit_domain(state: &AppState, args: &Value) -> anyhow::Result<Value> {
+    let domain = str_arg(args, "domain")?;
+    let upstream = str_arg(args, "upstream")?;
+    let advanced_config = opt_str(args, "advanced_config");
+
+    if !upstream.starts_with("http://") && !upstream.starts_with("https://") {
+        anyhow::bail!("Upstream must start with http:// or https://");
+    }
+
+    let existing = state.db.list_domains()?
+        .into_iter()
+        .find(|d| d.domain == domain)
+        .ok_or_else(|| anyhow::anyhow!("Domain not found: {}", domain))?;
+
+    let (cert_pem, key_pem) = state.ca.issue_for_domain(&domain)
+        .map_err(|e| anyhow::anyhow!("cert issue failed: {}", e))?;
+    let cert_dir = state.paths.cert_dir();
+    std::fs::create_dir_all(&cert_dir)?;
+    std::fs::write(cert_dir.join(format!("{}.crt", domain)), &cert_pem)?;
+    std::fs::write(cert_dir.join(format!("{}.key", domain)), &key_pem)?;
+
+    let expiry = chrono::Utc::now()
+        .checked_add_signed(chrono::Duration::days(crate::cert::ca::CERT_VALIDITY_DAYS))
+        .map(|d| d.to_rfc3339());
+
+    let cfg = crate::db::DomainConfig {
+        upstream,
+        cert_expiry: expiry,
+        advanced_config,
+        ..existing
+    };
+    state.db.upsert_domain(&cfg, &cert_pem, &key_pem)?;
+    sync_and_reload(state)?;
+
+    Ok(json!({ "ok": true, "domain": domain, "url": format!("https://{}", domain) }))
 }
 
 // ──────────────────────────── helpers ────────────────────────────────────

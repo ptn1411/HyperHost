@@ -32,11 +32,7 @@ pub fn sync_hosts(domains: &[String]) -> anyhow::Result<()> {
 
     let final_content = format!("{}{}", cleaned.trim_end(), block);
 
-    // Atomic write: write to temp → rename
-    let tmp = format!("{}.__hyperhost_tmp", HOSTS_PATH);
-    std::fs::write(&tmp, &final_content)?;
-    std::fs::rename(&tmp, HOSTS_PATH)?;
-
+    write_hosts(&final_content)?;
     flush_dns_cache();
 
     tracing::info!("Synced {} domains to hosts file", domains.len());
@@ -47,10 +43,23 @@ pub fn sync_hosts(domains: &[String]) -> anyhow::Result<()> {
 pub fn remove_all() -> anyhow::Result<()> {
     let content = std::fs::read_to_string(HOSTS_PATH).unwrap_or_default();
     let cleaned = strip_managed_block(&content);
-    std::fs::write(HOSTS_PATH, cleaned.trim_end())?;
+    write_hosts(cleaned.trim_end())?;
     flush_dns_cache();
     tracing::info!("Removed HyperHost block from hosts file");
     Ok(())
+}
+
+/// Write content to the hosts file, using elevated privileges if needed.
+fn write_hosts(content: &str) -> anyhow::Result<()> {
+    let tmp = format!("{}.__hyperhost_tmp", HOSTS_PATH);
+    if std::fs::write(&tmp, content).is_ok() {
+        if std::fs::rename(&tmp, HOSTS_PATH).is_ok() {
+            return Ok(());
+        }
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    crate::elevation::write_file_elevated(HOSTS_PATH, content)
 }
 
 fn flush_dns_cache() {

@@ -4,11 +4,13 @@ pub mod db;
 pub mod detect;
 pub mod dns;
 pub mod docker;
+pub mod elevation;
 pub mod mcp;
 #[cfg(feature = "gui")]
 pub mod ipc;
 pub mod nginx;
 pub mod paths;
+pub mod skill;
 pub mod state;
 
 use state::AppState;
@@ -236,6 +238,7 @@ pub fn run() {
             ipc::commands::compose_restart,
             ipc::commands::compose_logs,
             ipc::commands::compose_save_file,
+            ipc::commands::install_project_skills,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

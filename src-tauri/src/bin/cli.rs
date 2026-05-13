@@ -112,6 +112,12 @@ enum Commands {
         action: McpAction,
     },
 
+    /// Register HyperHost into AI CLI tools (Claude Code, Gemini CLI, etc.)
+    Skill {
+        #[command(subcommand)]
+        action: SkillAction,
+    },
+
     /// Print shell completion script
     Completions {
         /// Target shell
@@ -275,6 +281,12 @@ enum McpAction {
     Snippet,
 }
 
+#[derive(Subcommand)]
+enum SkillAction {
+    /// Auto-install HyperHost MCP server + skill into Claude Code and Gemini CLI
+    Init,
+}
+
 #[derive(Copy, Clone, ValueEnum)]
 enum CompletionShell {
     Bash,
@@ -322,11 +334,17 @@ fn main() {
 fn run(cli: Cli) -> anyhow::Result<()> {
     let json = cli.json;
 
-    // Completions don't need state
-    if let Commands::Completions { shell } = cli.command {
-        let mut cmd = Cli::command();
-        generate(shell.to_shell(), &mut cmd, "hyh", &mut io::stdout());
-        return Ok(());
+    // These don't need app state
+    match &cli.command {
+        Commands::Completions { shell } => {
+            let mut cmd = Cli::command();
+            generate(shell.to_shell(), &mut cmd, "hyh", &mut io::stdout());
+            return Ok(());
+        }
+        Commands::Skill { action } => {
+            return cmd_skill(action, json);
+        }
+        _ => {}
     }
 
     let state = hyperhost_lib::init_state()?;
@@ -347,7 +365,7 @@ fn run(cli: Cli) -> anyhow::Result<()> {
         Commands::Docker { action } => cmd_docker(action, json)?,
         Commands::Tunnel { action } => cmd_tunnel(&state, action, json)?,
         Commands::Mcp { action } => cmd_mcp(state, action, json)?,
-        Commands::Completions { .. } => unreachable!(),
+        Commands::Skill { .. } | Commands::Completions { .. } => unreachable!(),
     }
 
     Ok(())
@@ -1322,6 +1340,188 @@ fn read_stdin() -> anyhow::Result<String> {
     let mut buf = String::new();
     io::stdin().read_to_string(&mut buf)?;
     Ok(buf)
+}
+
+// ──────────────────────────── skill ─────────────────────────────────
+
+fn cmd_skill(action: &SkillAction, json: bool) -> anyhow::Result<()> {
+    match action {
+        SkillAction::Init => cmd_skill_init(json),
+    }
+}
+
+fn cmd_skill_init(json: bool) -> anyhow::Result<()> {
+    let exe = std::env::current_exe()?
+        .to_string_lossy()
+        .to_string();
+
+    let mcp_entry = serde_json::json!({
+        "command": exe,
+        "args": ["mcp", "serve"]
+    });
+
+    let home = dirs::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("Cannot find home directory"))?;
+
+    let mut results: Vec<(&str, bool, String)> = Vec::new();
+
+    // 1. Claude Code — MCP server in ~/.claude/settings.json
+    let claude_settings = home.join(".claude").join("settings.json");
+    match install_mcp_config(&claude_settings, "hyperhost", &mcp_entry) {
+        Ok(_) => results.push(("Claude Code (MCP)", true, claude_settings.display().to_string())),
+        Err(e) => results.push(("Claude Code (MCP)", false, e.to_string())),
+    }
+
+    // 2. Claude Code — skill file in ~/.claude/commands/hyh.md
+    let skill_path = home.join(".claude").join("commands").join("hyh.md");
+    match install_skill_file(&skill_path) {
+        Ok(_) => results.push(("Claude Code (Skill /hyh)", true, skill_path.display().to_string())),
+        Err(e) => results.push(("Claude Code (Skill /hyh)", false, e.to_string())),
+    }
+
+    // 3. Gemini CLI — MCP server in ~/.gemini/settings.json
+    let gemini_settings = home.join(".gemini").join("settings.json");
+    match install_mcp_config(&gemini_settings, "hyperhost", &mcp_entry) {
+        Ok(_) => results.push(("Gemini CLI (MCP)", true, gemini_settings.display().to_string())),
+        Err(e) => results.push(("Gemini CLI (MCP)", false, e.to_string())),
+    }
+
+    // 4. OpenAI Codex CLI — MCP server in ~/.codex/config.toml
+    let codex_config = home.join(".codex").join("config.toml");
+    match install_codex_mcp_config(&codex_config, &exe) {
+        Ok(_) => results.push(("Codex CLI (MCP)", true, codex_config.display().to_string())),
+        Err(e) => results.push(("Codex CLI (MCP)", false, e.to_string())),
+    }
+
+    // 5. Gemini CLI — instructions in ~/.gemini/GEMINI.md
+    let gemini_instructions = home.join(".gemini").join("GEMINI.md");
+    match install_instructions_file(&gemini_instructions) {
+        Ok(_) => results.push(("Gemini CLI (Instructions)", true, gemini_instructions.display().to_string())),
+        Err(e) => results.push(("Gemini CLI (Instructions)", false, e.to_string())),
+    }
+
+    // 6. Codex CLI — instructions in ~/.codex/instructions.md
+    let codex_instructions = home.join(".codex").join("instructions.md");
+    match install_instructions_file(&codex_instructions) {
+        Ok(_) => results.push(("Codex CLI (Instructions)", true, codex_instructions.display().to_string())),
+        Err(e) => results.push(("Codex CLI (Instructions)", false, e.to_string())),
+    }
+
+    if json {
+        let rows: Vec<_> = results
+            .iter()
+            .map(|(name, ok, detail)| json!({ "target": name, "ok": ok, "detail": detail }))
+            .collect();
+        println!("{}", json!({ "ok": true, "results": rows }));
+    } else {
+        println!("⚡ HyperHost skill init\n");
+        for (name, ok, detail) in &results {
+            let icon = if *ok { "✓" } else { "✗" };
+            println!("  {} {}", icon, name);
+            println!("    {}\n", detail);
+        }
+        println!("  Restart your AI CLI to pick up the new MCP server.");
+        println!("  In Claude Code, type /hyh to use the HyperHost skill.");
+    }
+
+    Ok(())
+}
+
+fn install_mcp_config(
+    settings_path: &Path,
+    server_name: &str,
+    mcp_entry: &serde_json::Value,
+) -> anyhow::Result<()> {
+    if let Some(parent) = settings_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let mut config: serde_json::Value = if settings_path.exists() {
+        let content = std::fs::read_to_string(settings_path)?;
+        if content.trim().is_empty() {
+            json!({})
+        } else {
+            serde_json::from_str(&content)
+                .map_err(|e| anyhow::anyhow!("Invalid JSON in {}: {}", settings_path.display(), e))?
+        }
+    } else {
+        json!({})
+    };
+
+    let obj = config
+        .as_object_mut()
+        .ok_or_else(|| anyhow::anyhow!("settings.json root is not an object"))?;
+
+    if !obj.contains_key("mcpServers") {
+        obj.insert("mcpServers".into(), json!({}));
+    }
+
+    config["mcpServers"][server_name] = mcp_entry.clone();
+
+    let output = serde_json::to_string_pretty(&config)?;
+    std::fs::write(settings_path, &output)?;
+
+    Ok(())
+}
+
+fn install_codex_mcp_config(config_path: &Path, exe: &str) -> anyhow::Result<()> {
+    if let Some(parent) = config_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let content = if config_path.exists() {
+        std::fs::read_to_string(config_path)?
+    } else {
+        String::new()
+    };
+
+    let section_header = "[mcp_servers.hyperhost]";
+
+    // Remove existing section if present
+    let cleaned = if content.contains(section_header) {
+        let mut result = String::new();
+        let mut skip = false;
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed == section_header {
+                skip = true;
+                continue;
+            }
+            if skip && trimmed.starts_with('[') {
+                skip = false;
+            }
+            if !skip {
+                result.push_str(line);
+                result.push('\n');
+            }
+        }
+        result
+    } else {
+        content
+    };
+
+    let escaped_exe = exe.replace('\\', "\\\\");
+    let section = format!(
+        "\n{}\ncommand = \"{}\"\nargs = [\"mcp\", \"serve\"]\n",
+        section_header, escaped_exe
+    );
+
+    let final_content = format!("{}{}", cleaned.trim_end_matches('\n'), section);
+    std::fs::write(config_path, final_content)?;
+
+    Ok(())
+}
+
+fn install_skill_file(skill_path: &Path) -> anyhow::Result<()> {
+    if let Some(parent) = skill_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(skill_path, hyperhost_lib::skill::skill_content_raw())?;
+    Ok(())
+}
+
+fn install_instructions_file(file_path: &Path) -> anyhow::Result<()> {
+    hyperhost_lib::skill::install_instructions_file(file_path)
 }
 
 // ──────────────────────────── helpers ────────────────────────────────────

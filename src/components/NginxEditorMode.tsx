@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import { api } from "../lib/tauri";
-import { i18n } from "../translation";
+import { useI18n } from "../translation";
 
 interface NginxEditorModeProps {
   initialDomain?: string;
@@ -57,6 +57,7 @@ export function NginxEditorMode({
   onSave,
   onCancel
 }: NginxEditorModeProps) {
+  const { t } = useI18n();
   const [domain, setDomain] = useState(initialDomain);
   const [upstream, setUpstream] = useState(initialUpstream);
   const [advancedConfig, setAdvancedConfig] = useState(initialAdvancedConfig);
@@ -85,7 +86,7 @@ export function NginxEditorMode({
   const handleValidate = async (content?: string): Promise<boolean> => {
     const src = (content ?? advancedConfig).trim();
     if (!src) {
-      setValidateError("Config trống — không có gì để validate.");
+      setValidateError(t("editorValidateEmpty"));
       setValidateOk(null);
       return false;
     }
@@ -94,7 +95,7 @@ export function NginxEditorMode({
     setValidateOk(null);
     try {
       const out = await api.validateNginxConfig(src);
-      setValidateOk(out.trim() || "nginx -t: syntax OK");
+      setValidateOk(out.trim() || t("editorValidateSyntaxOk"));
       return true;
     } catch (e: any) {
       setValidateError(String(e));
@@ -112,10 +113,10 @@ export function NginxEditorMode({
       const r = await api.importNginxConfigText(importText);
       try {
         await api.validateNginxConfig(r.advanced_config);
-        setValidateOk("Import passed nginx -t ✓");
+        setValidateOk(t("editorImportValidateOk"));
         setValidateError(null);
       } catch (ve: any) {
-        setValidateError(`Import: nginx -t thất bại\n${String(ve)}`);
+        setValidateError(t("editorImportValidateFail", { error: String(ve) }));
         setValidateOk(null);
       }
       setAdvancedConfig(r.advanced_config);
@@ -175,7 +176,7 @@ export function NginxEditorMode({
   }, [initialDomain, initialUpstream, initialAdvancedConfig, initialProjectPath, initialRunCommand]);
 
   const handleClear = () => {
-    if (confirm("Xóa trắng toàn bộ Nginx config?")) {
+    if (confirm(t("editorClearConfirm"))) {
       setAdvancedConfig("");
     }
   };
@@ -187,7 +188,7 @@ export function NginxEditorMode({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-xl font-bold text-text flex items-center gap-2">
             <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-            {isEditing ? i18n.t("editorTitleEdit", { domain: initialDomain }) : i18n.t("editorTitleNew")}
+            {isEditing ? t("editorTitleEdit", { domain: initialDomain }) : t("editorTitleNew")}
           </h2>
           <div className="flex gap-3">
             <button
@@ -195,18 +196,18 @@ export function NginxEditorMode({
               onClick={() => { setImportError(null); setImportOpen(true); }}
               disabled={loading}
               className="px-3 py-2 text-xs font-semibold rounded-lg text-text-muted hover:text-accent hover:bg-accent/10 border border-surface-3 hover:border-accent/30 transition-all disabled:opacity-50 flex items-center gap-1.5"
-              title="Dán nội dung .conf từ prod để tự động convert sang dev">
+              title={t("editorImportTooltip")}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
-              {i18n.t("editorBtnImport")}
+              {t("editorBtnImport")}
             </button>
             <button
               type="button"
               onClick={() => handleValidate()}
               disabled={loading || validateBusy || !advancedConfig.trim()}
               className="px-3 py-2 text-xs font-semibold rounded-lg text-text-muted hover:text-accent hover:bg-accent/10 border border-surface-3 hover:border-accent/30 transition-all disabled:opacity-50 flex items-center gap-1.5"
-              title="Chạy nginx -t để kiểm tra syntax của advanced config">
+              title={t("editorValidateTooltip")}>
               {validateBusy ? (
                 <span className="w-3.5 h-3.5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
               ) : (
@@ -214,7 +215,7 @@ export function NginxEditorMode({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
               )}
-              {i18n.t("editorBtnValidate")}
+              {t("editorBtnValidate")}
             </button>
             {isEditing && projectPath.trim() && (
               <button
@@ -222,11 +223,11 @@ export function NginxEditorMode({
                 onClick={openExportModal}
                 disabled={loading}
                 className="px-3 py-2 text-xs font-semibold rounded-lg text-text-muted hover:text-accent hover:bg-accent/10 border border-surface-3 hover:border-accent/30 transition-all disabled:opacity-50 flex items-center gap-1.5"
-                title="Xuất config ra thư mục dự án để dùng cho prod">
+                title={t("editorExportTooltip")}>
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                {i18n.t("editorBtnExport")}
+                {t("editorBtnExport")}
               </button>
             )}
             {isEditing && (
@@ -236,7 +237,7 @@ export function NginxEditorMode({
                 disabled={loading}
                 className="px-4 py-2 text-sm font-semibold rounded-lg text-text-muted hover:text-white hover:bg-surface-3 transition-colors disabled:opacity-50"
               >
-                {i18n.t("editorBtnCancelEdit")}
+                {t("editorBtnCancelEdit")}
               </button>
             )}
             <button
@@ -249,14 +250,14 @@ export function NginxEditorMode({
               ) : (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
               )}
-              {isEditing ? i18n.t("editorBtnUpdate") : i18n.t("editorBtnCreate")}
+              {isEditing ? t("editorBtnUpdate") : t("editorBtnCreate")}
             </button>
           </div>
         </div>
 
         <div className="flex flex-col md:flex-row gap-5">
           <div className="flex-1">
-            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">{i18n.t("editorLabelDomain")}</label>
+            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">{t("editorLabelDomain")}</label>
             <div className="relative">
               <span className="absolute left-3.5 top-2.5 text-text-muted/50">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
@@ -271,7 +272,7 @@ export function NginxEditorMode({
             </div>
           </div>
           <div className="flex-1">
-            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">{i18n.t("editorLabelUpstream")}</label>
+            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">{t("editorLabelUpstream")}</label>
             <div className="relative">
               <span className="absolute left-3.5 top-2.5 text-text-muted/50">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>
@@ -290,7 +291,7 @@ export function NginxEditorMode({
         <div className="flex flex-col md:flex-row gap-5 mt-5">
           <div className="flex-1">
             <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">
-              {i18n.t("editorLabelProjectPath")}
+              {t("editorLabelProjectPath")}
             </label>
             <div className="relative">
               <span className="absolute left-3.5 top-2.5 text-text-muted/50">
@@ -300,14 +301,14 @@ export function NginxEditorMode({
                 type="text"
                 value={projectPath}
                 onChange={(e) => setProjectPath(e.target.value)}
-                placeholder="C:\Users\you\Code\my-app"
+                placeholder={t("editorPlaceholderProjectPath")}
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-surface-3/30 border border-surface-3 text-text font-mono text-sm placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
               />
             </div>
           </div>
           <div className="flex-1">
             <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-2 uppercase">
-              {i18n.t("editorLabelRunCommand")}
+              {t("editorLabelRunCommand")}
             </label>
             <div className="relative">
               <span className="absolute left-3.5 top-2.5 text-text-muted/50">
@@ -317,7 +318,7 @@ export function NginxEditorMode({
                 type="text"
                 value={runCommand}
                 onChange={(e) => setRunCommand(e.target.value)}
-                placeholder="npm run dev"
+                placeholder={t("editorPlaceholderRunCommand")}
                 disabled={!projectPath.trim()}
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-surface-3/30 border border-surface-3 text-text font-mono text-sm placeholder:text-text-muted/40 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all disabled:opacity-50"
               />
@@ -366,7 +367,7 @@ export function NginxEditorMode({
               onClick={handleClear}
               className="text-[10px] uppercase font-bold text-gray-500 hover:text-red-400 transition-colors"
             >
-              Làm mới (Clear)
+              {t("editorBtnClear")}
             </button>
           </div>
           
@@ -403,9 +404,9 @@ export function NginxEditorMode({
       {importOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setImportOpen(false)}>
           <div className="bg-surface-2 border border-surface-3 rounded-2xl shadow-2xl p-6 w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-text mb-2">{i18n.t("editorImportTitle")}</h3>
+            <h3 className="text-lg font-bold text-text mb-2">{t("editorImportTitle")}</h3>
             <p className="text-xs text-text-muted mb-4">
-              Dán nội dung file <code className="bg-surface-3/30 px-1 py-0.5 rounded font-mono">.conf</code> của bạn. Tool sẽ tự strip SSL/listen/server_name và rewrite <code className="bg-surface-3/30 px-1 py-0.5 rounded font-mono">proxy_pass</code> thành <code className="bg-surface-3/30 px-1 py-0.5 rounded font-mono">$UPSTREAM</code>.
+              {t("editorImportDesc")}
             </p>
             <textarea
               value={importText}
@@ -421,13 +422,13 @@ export function NginxEditorMode({
               <button
                 onClick={() => { setImportOpen(false); setImportError(null); }}
                 className="px-4 py-2 rounded-lg text-sm font-semibold text-text-muted bg-surface-3/50 hover:bg-surface-3 transition-colors cursor-pointer">
-                {i18n.t("btnCancel")}
+                {t("btnCancel")}
               </button>
               <button
                 onClick={handleImportApply}
                 disabled={importBusy || !importText.trim()}
                 className="px-5 py-2 rounded-lg text-sm font-bold text-white bg-accent hover:bg-accent-hover disabled:opacity-50 transition-all cursor-pointer">
-                {importBusy ? i18n.t("editorImportProcessing") : i18n.t("editorImportBtn")}
+                {importBusy ? t("editorImportProcessing") : t("editorImportBtn")}
               </button>
             </div>
           </div>
@@ -437,29 +438,29 @@ export function NginxEditorMode({
       {exportOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setExportOpen(false)}>
           <div className="bg-surface-2 border border-surface-3 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-text mb-2">{i18n.t("editorExportTitle")}</h3>
+            <h3 className="text-lg font-bold text-text mb-2">{t("editorExportTitle")}</h3>
             <p className="text-xs text-text-muted mb-4">
-              Ghi file <code className="bg-surface-3/30 px-1 py-0.5 rounded font-mono">{`<project>/nginx/<prod-domain>.conf`}</code> đã strip SSL (để Certbot tự thêm trên prod).
+              {t("editorExportTooltip")}
             </p>
-            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-1.5 uppercase">{i18n.t("editorExportLabelDomain")}</label>
+            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-1.5 uppercase">{t("editorExportLabelDomain")}</label>
             <input
               type="text"
               value={exportProdDomain}
               onChange={(e) => setExportProdDomain(e.target.value)}
-              placeholder="myapp.example.com"
+              placeholder={t("editorExportPlaceholderProdDomain")}
               className="w-full px-3 py-2 rounded-lg bg-surface border border-surface-3 text-text font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 mb-3"
             />
-            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-1.5 uppercase">{i18n.t("editorExportLabelUpstream")}</label>
+            <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-1.5 uppercase">{t("editorExportLabelUpstream")}</label>
             <input
               type="text"
               value={exportProdUpstream}
               onChange={(e) => setExportProdUpstream(e.target.value)}
-              placeholder="http://127.0.0.1:3000"
+              placeholder={t("editorExportPlaceholderProdUpstream")}
               className="w-full px-3 py-2 rounded-lg bg-surface border border-surface-3 text-text font-mono text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50"
             />
             {exportResult && (
               <p className="mt-3 text-xs text-success bg-success/10 border border-success/20 rounded-lg p-2.5 font-mono break-all">
-                ✓ Đã ghi: {exportResult}
+                ✓ {t("editorExportSaved", { path: exportResult })}
               </p>
             )}
             {exportError && (
@@ -469,13 +470,13 @@ export function NginxEditorMode({
               <button
                 onClick={() => setExportOpen(false)}
                 className="px-4 py-2 rounded-lg text-sm font-semibold text-text-muted bg-surface-3/50 hover:bg-surface-3 transition-colors cursor-pointer">
-                {i18n.t("editorBtnClose")}
+                {t("editorBtnClose")}
               </button>
               <button
                 onClick={handleExportApply}
                 disabled={exportBusy || !exportProdDomain.trim() || !exportProdUpstream.trim()}
                 className="px-5 py-2 rounded-lg text-sm font-bold text-white bg-accent hover:bg-accent-hover disabled:opacity-50 transition-all cursor-pointer">
-                {exportBusy ? i18n.t("editorExportWriting") : i18n.t("editorExportBtn")}
+                {exportBusy ? t("editorExportWriting") : t("editorExportBtn")}
               </button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, ComposeFileEntry, ComposeStatus, DockerStatus } from "../lib/tauri";
+import { useI18n } from "../translation";
 
 interface Props {
   projectPath: string;
@@ -41,6 +42,7 @@ const initialDbState = (): Record<DbKey, DbChoice> => {
 type BusyKey = `${"up" | "down" | "restart" | "logs"}:${string}` | "refresh" | "save";
 
 export function DockerPanel({ projectPath, domain, onClose }: Props) {
+  const { t, locale } = useI18n();
   const [docker, setDocker] = useState<DockerStatus | null>(null);
   const [status, setStatus] = useState<ComposeStatus | null>(null);
   const [busy, setBusy] = useState<BusyKey | null>(null);
@@ -102,8 +104,8 @@ export function DockerPanel({ projectPath, domain, onClose }: Props) {
   };
 
   const generatedPrompt = useMemo(
-    () => buildPrompt(domain, projectPath, dbs, extraReq),
-    [domain, projectPath, dbs, extraReq],
+    () => buildPrompt(domain, projectPath, dbs, extraReq, locale),
+    [domain, projectPath, dbs, extraReq, locale],
   );
 
   const suggestedFileName = useMemo(() => {
@@ -133,17 +135,17 @@ export function DockerPanel({ projectPath, domain, onClose }: Props) {
     setSaveErr(null);
     setSaveMsg(null);
     if (!pasteName.trim() || !pasteContent.trim()) {
-      setSaveErr("Cần điền tên file và nội dung YAML.");
+      setSaveErr(t("dockerSaveValidation"));
       return;
     }
     const exists = status?.files.some((f) => f.name.toLowerCase() === pasteName.trim().toLowerCase());
-    if (exists && !confirm(`File ${pasteName} đã tồn tại. Ghi đè?`)) {
+    if (exists && !confirm(t("dockerSaveOverwriteConfirm", { fileName: pasteName }))) {
       return;
     }
     setBusy("save");
     try {
       const path = await api.composeSaveFile(projectPath, pasteName.trim(), pasteContent);
-      setSaveMsg(`Đã lưu: ${path}`);
+      setSaveMsg(t("dockerSaveSuccess", { path }));
       setPasteContent("");
       const s = await api.composeStatus(projectPath);
       setStatus(s);
@@ -167,48 +169,48 @@ export function DockerPanel({ projectPath, domain, onClose }: Props) {
               <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 12h14M5 16h14M3 4h18a1 1 0 011 1v14a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1z" />
               </svg>
-              Docker · {domain}
+              {t("dockerTitle", { domain })}
             </h3>
             <p className="text-[11px] text-text-muted font-mono truncate mt-1">{projectPath}</p>
           </div>
-          <button onClick={onClose} className="text-text-muted hover:text-text px-2 py-1 cursor-pointer">✕</button>
+          <button onClick={onClose} title={t("dockerClose")} className="text-text-muted hover:text-text px-2 py-1 cursor-pointer">✕</button>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Docker daemon status */}
           <div className="flex items-center gap-3 text-xs">
-            <span className="text-text-muted">Docker:</span>
+            <span className="text-text-muted">{t("dockerStatusTitle")}:</span>
             {docker === null ? (
-              <span className="text-text-muted italic">Đang kiểm tra…</span>
+              <span className="text-text-muted italic">{t("dockerChecking")}</span>
             ) : !docker.installed ? (
-              <span className="text-danger font-semibold">Chưa cài đặt</span>
+              <span className="text-danger font-semibold">{t("dockerNotInstalled")}</span>
             ) : !docker.daemon_running ? (
-              <span className="text-warning font-semibold">CLI có nhưng daemon không chạy</span>
+              <span className="text-warning font-semibold">{t("dockerStopped")}</span>
             ) : (
-              <span className="text-success font-semibold">Sẵn sàng · {docker.version ?? ""}</span>
+              <span className="text-success font-semibold">{t("dockerRunning")} · {docker.version ?? ""}</span>
             )}
             <button
               onClick={refresh}
               disabled={busy !== null}
               className="ml-auto px-3 py-1 rounded-md text-[11px] font-semibold text-text-muted hover:text-text hover:bg-surface-3 cursor-pointer disabled:opacity-40">
-              {busy === "refresh" ? "Đang refresh…" : "Refresh"}
+              {busy === "refresh" ? t("dockerChecking") : t("dockerRefresh")}
             </button>
             <button
               onClick={() => setPromptOpen(true)}
               className="px-3 py-1 rounded-md text-[11px] font-bold text-accent border border-accent/30 hover:bg-accent/10 cursor-pointer">
-              Generate AI prompt
+              {t("dockerCreateWithAi")}
             </button>
           </div>
 
           {/* Compose files list */}
           {noFiles ? (
             <div className="rounded-lg bg-surface border border-surface-3/40 p-4 text-center">
-              <p className="text-xs text-text-muted">Chưa có file compose trong project.</p>
+              <p className="text-xs text-text-muted">{t("dockerNoFiles")}</p>
               <button
                 onClick={() => setPromptOpen(true)}
                 className="mt-2 text-[11px] font-semibold text-accent hover:underline cursor-pointer">
-                Tạo prompt cho AI →
+                {t("dockerCreateWithAi")} →
               </button>
             </div>
           ) : (
@@ -246,13 +248,13 @@ export function DockerPanel({ projectPath, domain, onClose }: Props) {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setPromptOpen(false)}>
           <div className="bg-surface-2 border border-surface-3 rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="p-5 border-b border-surface-3/40 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-text">Tạo prompt AI cho docker-compose.yml</h3>
+              <h3 className="text-lg font-bold text-text">{t("dockerPromptTitle")}</h3>
               <button onClick={() => setPromptOpen(false)} className="text-text-muted hover:text-text px-2 py-1 cursor-pointer">✕</button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <p className="text-xs text-text-muted">
-                Chọn DB → Copy prompt → dán vào ChatGPT/Claude → AI trả YAML → dán vào ô bên dưới và bấm Lưu.
+                {t("dockerPromptDesc")}
               </p>
 
               <div className="space-y-2">
@@ -276,10 +278,10 @@ export function DockerPanel({ projectPath, domain, onClose }: Props) {
                         <div className="grid grid-cols-3 gap-2 mt-2 pl-6">
                           <Input label="Version" value={d.version}
                             onChange={(v) => setDbs((p) => ({ ...p, [k]: { ...p[k], version: v } }))} />
-                          <Input label="Host port" value={d.port}
+                          <Input label={t("dockerPromptPort")} value={d.port}
                             onChange={(v) => setDbs((p) => ({ ...p, [k]: { ...p[k], port: v } }))} />
                           {meta.needsPassword && (
-                            <Input label="Password" value={d.password}
+                            <Input label={t("dockerPromptPass")} value={d.password}
                               onChange={(v) => setDbs((p) => ({ ...p, [k]: { ...p[k], password: v } }))} />
                           )}
                         </div>
@@ -291,13 +293,13 @@ export function DockerPanel({ projectPath, domain, onClose }: Props) {
 
               <div>
                 <label className="block text-[11px] font-bold tracking-wider text-text-muted mb-1.5 uppercase">
-                  Yêu cầu thêm (tùy chọn)
+                  {t("dockerPromptExtraReq")}
                 </label>
                 <textarea
                   value={extraReq}
                   onChange={(e) => setExtraReq(e.target.value)}
                   rows={3}
-                  placeholder="Ví dụ: tên network là myapp_net, mount volume vào ./data, expose Redis Insight kèm theo…"
+                  placeholder={t("dockerPromptExtraPlaceholder")}
                   className="w-full px-3 py-2 rounded-lg bg-surface border border-surface-3 text-text font-mono text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 resize-y"
                 />
               </div>
@@ -311,7 +313,7 @@ export function DockerPanel({ projectPath, domain, onClose }: Props) {
                     className={`px-3 py-1 rounded text-[11px] font-bold cursor-pointer disabled:opacity-40 transition-all ${
                       copied ? "bg-success text-white" : "bg-accent text-white hover:bg-accent-hover"
                     }`}>
-                    {copied ? "Đã copy ✓" : "Copy prompt"}
+                    {copied ? t("dockerPromptCopied") : t("dockerPromptCopy")}
                   </button>
                 </div>
                 <pre className="text-[11px] text-text bg-surface border border-surface-3/40 rounded-lg p-3 font-mono whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
@@ -323,10 +325,10 @@ export function DockerPanel({ projectPath, domain, onClose }: Props) {
               <div className="border-t border-surface-3/40 pt-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold tracking-wider text-text-muted uppercase">
-                    Dán YAML từ AI và lưu
+                    {t("dockerPasteTitle")}
                   </span>
                   <span className="text-[10px] text-text-muted">
-                    Lưu vào: <code className="font-mono bg-surface-3/40 px-1 rounded">{projectPath}</code>
+                    <code className="font-mono bg-surface-3/40 px-1 rounded">{projectPath}</code>
                   </span>
                 </div>
 
@@ -342,7 +344,7 @@ export function DockerPanel({ projectPath, domain, onClose }: Props) {
                     onClick={handleSavePaste}
                     disabled={busy === "save" || !pasteContent.trim() || !pasteName.trim()}
                     className="px-4 py-1.5 rounded-md text-xs font-bold text-white bg-success/80 hover:bg-success disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
-                    {busy === "save" ? "Đang lưu…" : "Lưu YAML"}
+                    {busy === "save" ? t("dockerPasteSaving") : t("dockerPasteSave")}
                   </button>
                 </div>
 
@@ -350,7 +352,7 @@ export function DockerPanel({ projectPath, domain, onClose }: Props) {
                   value={pasteContent}
                   onChange={(e) => setPasteContent(e.target.value)}
                   rows={8}
-                  placeholder="# Dán nội dung docker-compose.yml ở đây…"
+                  placeholder={t("dockerPastePlaceholder")}
                   className="w-full px-3 py-2 rounded-lg bg-surface border border-surface-3 text-text font-mono text-xs focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 resize-y"
                 />
 
@@ -390,6 +392,7 @@ function ComposeFileCard({
   onRestart: () => void;
   onLogs: () => void;
 }) {
+  const { t } = useI18n();
   const disabled = !daemonRunning || busy !== null;
   const isBusy = (kind: "up" | "down" | "restart" | "logs") => busy === `${kind}:${file.name}`;
   return (
@@ -404,25 +407,25 @@ function ComposeFileCard({
             onClick={onUp}
             disabled={disabled}
             className="px-2.5 py-1 rounded text-[11px] font-bold text-white bg-success/80 hover:bg-success disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
-            {isBusy("up") ? "…" : "Up -d"}
+            {isBusy("up") ? "…" : t("dockerBtnRun")}
           </button>
           <button
             onClick={onRestart}
             disabled={disabled}
             className="px-2.5 py-1 rounded text-[11px] font-bold text-text bg-surface-3 hover:bg-surface-3/70 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
-            {isBusy("restart") ? "…" : "Restart"}
+            {isBusy("restart") ? "…" : t("dockerBtnRestart")}
           </button>
           <button
             onClick={onDown}
             disabled={disabled}
             className="px-2.5 py-1 rounded text-[11px] font-bold text-white bg-danger/80 hover:bg-danger disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
-            {isBusy("down") ? "…" : "Down"}
+            {isBusy("down") ? "…" : t("dockerBtnStop")}
           </button>
           <button
             onClick={onLogs}
             disabled={disabled}
             className="px-2.5 py-1 rounded text-[11px] font-bold text-text bg-surface-3 hover:bg-surface-3/70 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all">
-            {isBusy("logs") ? "…" : "Logs"}
+            {isBusy("logs") ? "…" : t("dockerBtnLogs")}
           </button>
         </div>
       </div>
@@ -445,7 +448,7 @@ function ComposeFileCard({
         </div>
       ) : (
         <p className="text-[11px] text-text-muted italic border-t border-surface-3/30 pt-2">
-          Chưa có service nào đang chạy. Bấm Up -d để khởi động.
+          {t("dockerNoServicesRunning")}
         </p>
       )}
     </div>
@@ -471,43 +474,78 @@ function buildPrompt(
   projectPath: string,
   dbs: Record<DbKey, DbChoice>,
   extra: string,
+  locale: string,
 ): string {
   const selected = (Object.keys(dbs) as DbKey[]).filter((k) => dbs[k].enabled);
+  const isEn = locale === "en";
   if (selected.length === 0) {
-    return "Chọn ít nhất một DB ở trên để xem prompt.";
+    return isEn ? "Select at least one DB above to view the prompt." : "Chọn ít nhất một DB ở trên để xem prompt.";
   }
 
   const lines: string[] = [];
-  lines.push(`Tôi cần file \`docker-compose.yml\` cho dự án local "${domain}".`);
-  lines.push(`Thư mục dự án: ${projectPath}`);
-  lines.push("");
-  lines.push("Các service cần có:");
-  for (const k of selected) {
-    const d = dbs[k];
-    const meta = DB_DEFAULTS[k];
-    const parts = [
-      `${meta.label} ${d.version}`,
-      `bind host port ${d.port}`,
-    ];
-    if (meta.needsPassword && d.password) {
-      parts.push(`password "${d.password}"`);
+  if (isEn) {
+    lines.push(`I need a \`docker-compose.yml\` file for local dev project "${domain}".`);
+    lines.push(`Project path: ${projectPath}`);
+    lines.push("");
+    lines.push("Required services:");
+    for (const k of selected) {
+      const d = dbs[k];
+      const meta = DB_DEFAULTS[k];
+      const parts = [
+        `${meta.label} ${d.version}`,
+        `bind host port ${d.port}`,
+      ];
+      if (meta.needsPassword && d.password) {
+        parts.push(`password "${d.password}"`);
+      }
+      parts.push(`dedicated volume for data persistence`);
+      lines.push(`- ${parts.join(", ")}`);
     }
-    parts.push(`volume riêng để persist data`);
-    lines.push(`- ${parts.join(", ")}`);
+    lines.push("");
+    lines.push("General requirements:");
+    lines.push("- Appropriate healthcheck for each service.");
+    lines.push("- restart: unless-stopped.");
+    lines.push("- Concise service names (e.g. `redis`, `postgres`).");
+    lines.push("- Bind host ports to 127.0.0.1 (local only, do not expose to public network).");
+    lines.push("- Use named volumes for easy persistence management.");
+    lines.push("- Include short header comment with up/down instructions.");
+    if (extra.trim()) {
+      lines.push(`- ${extra.trim()}`);
+    }
+    lines.push("");
+    lines.push("Reply ONLY with the \`docker-compose.yml\` content in a code block, without extra explanations.");
+  } else {
+    lines.push(`Tôi cần file \`docker-compose.yml\` cho dự án local "${domain}".`);
+    lines.push(`Thư mục dự án: ${projectPath}`);
+    lines.push("");
+    lines.push("Các service cần có:");
+    for (const k of selected) {
+      const d = dbs[k];
+      const meta = DB_DEFAULTS[k];
+      const parts = [
+        `${meta.label} ${d.version}`,
+        `bind host port ${d.port}`,
+      ];
+      if (meta.needsPassword && d.password) {
+        parts.push(`password "${d.password}"`);
+      }
+      parts.push(`volume riêng để persist data`);
+      lines.push(`- ${parts.join(", ")}`);
+    }
+    lines.push("");
+    lines.push("Yêu cầu chung:");
+    lines.push("- Mỗi service có healthcheck phù hợp.");
+    lines.push("- restart: unless-stopped.");
+    lines.push("- Đặt tên service ngắn gọn (vd `redis`, `postgres`).");
+    lines.push("- Bind các port ra 127.0.0.1 (chỉ truy cập từ máy host, không expose mạng ngoài).");
+    lines.push("- Dùng named volumes (không bind mount thư mục local) để dễ xóa.");
+    lines.push("- Kèm comment ngắn ở đầu file nói rõ cách up/down.");
+    if (extra.trim()) {
+      lines.push(`- ${extra.trim()}`);
+    }
+    lines.push("");
+    lines.push("Trả lời CHỈ nội dung file `docker-compose.yml` trong code block, không kèm lời giải thích.");
   }
-  lines.push("");
-  lines.push("Yêu cầu chung:");
-  lines.push("- Mỗi service có healthcheck phù hợp.");
-  lines.push("- restart: unless-stopped.");
-  lines.push("- Đặt tên service ngắn gọn (vd `redis`, `postgres`).");
-  lines.push("- Bind các port ra 127.0.0.1 (chỉ truy cập từ máy host, không expose mạng ngoài).");
-  lines.push("- Dùng named volumes (không bind mount thư mục local) để dễ xóa.");
-  lines.push("- Kèm comment ngắn ở đầu file nói rõ cách up/down.");
-  if (extra.trim()) {
-    lines.push(`- ${extra.trim()}`);
-  }
-  lines.push("");
-  lines.push("Trả lời CHỈ nội dung file `docker-compose.yml` trong code block, không kèm lời giải thích.");
 
   return lines.join("\n");
 }

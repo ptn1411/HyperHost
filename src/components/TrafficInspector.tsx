@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { i18n } from "../translation";
+import { useI18n } from "../translation";
 
 interface LogEntry {
   time: string;
@@ -13,6 +13,7 @@ interface LogEntry {
 }
 
 export function TrafficInspector() {
+  const { t } = useI18n();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
 
@@ -32,28 +33,28 @@ export function TrafficInspector() {
         <div className="p-3 border-b border-surface-3/30 bg-[#111827] flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text flex items-center gap-2">
             <svg className="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-            {i18n.t("trafficTitle")}
+            {t("trafficTitle")}
           </h3>
           <span className="flex items-center gap-2 text-xs font-mono text-text-muted">
             <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-            {i18n.t("trafficListening")}
+            {t("trafficListening")}
           </span>
         </div>
         <div className="flex-1 overflow-y-auto block bg-[#0a0f1d]">
           <table className="w-full text-left text-xs font-mono text-gray-300">
             <thead className="sticky top-0 bg-[#1f2937] text-gray-400">
               <tr>
-                <th className="px-4 py-2 font-semibold">{i18n.t("trafficColMethod")}</th>
-                <th className="px-4 py-2 font-semibold">{i18n.t("trafficColStatus")}</th>
-                <th className="px-4 py-2 font-semibold">{i18n.t("trafficColDomain")}</th>
-                <th className="px-4 py-2 font-semibold">{i18n.t("trafficColUri")}</th>
-                <th className="px-4 py-2 font-semibold text-right">{i18n.t("trafficColTime")}</th>
+                <th className="px-4 py-2 font-semibold">{t("trafficColMethod")}</th>
+                <th className="px-4 py-2 font-semibold">{t("trafficColStatus")}</th>
+                <th className="px-4 py-2 font-semibold">{t("trafficColDomain")}</th>
+                <th className="px-4 py-2 font-semibold">{t("trafficColUri")}</th>
+                <th className="px-4 py-2 font-semibold text-right">{t("trafficColTime")}</th>
               </tr>
             </thead>
             <tbody>
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-gray-500 italic">{i18n.t("trafficEmpty")}</td>
+                  <td colSpan={5} className="text-center py-10 text-gray-500 italic">{t("trafficEmpty")}</td>
                 </tr>
               ) : (
                 logs.map((log, i) => (
@@ -88,8 +89,8 @@ export function TrafficInspector() {
       {selectedLog && (
         <div className="w-1/3 bg-[#111827] flex flex-col">
           <div className="p-3 border-b border-surface-3/30 flex justify-between items-center bg-[#1f2937]">
-            <h4 className="text-sm font-semibold text-gray-200">{i18n.t("trafficDetails")}</h4>
-            <button onClick={() => setSelectedLog(null)} className="text-gray-400 hover:text-white">
+            <h4 className="text-sm font-semibold text-gray-200">{t("trafficDetails")}</h4>
+            <button onClick={() => setSelectedLog(null)} className="text-gray-400 hover:text-white cursor-pointer">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
@@ -104,15 +105,15 @@ export function TrafficInspector() {
                 <p className={`${selectedLog.status < 400 ? 'text-green-400' : 'text-red-400'} font-bold`}>{selectedLog.status}</p>
               </div>
               <div>
-                <p className="text-gray-500 mb-1">{i18n.t("trafficLatency")}</p>
+                <p className="text-gray-500 mb-1">{t("trafficLatency")}</p>
                 <p className="text-yellow-400">{selectedLog.latency}s</p>
               </div>
             </div>
             <div>
-              <p className="text-gray-500 mb-1">{i18n.t("trafficBody")}</p>
+              <p className="text-gray-500 mb-1">{t("trafficBody")}</p>
               <pre className="bg-black/50 p-3 rounded border border-white/5 whitespace-pre-wrap break-all text-gray-300">
                 {selectedLog.req_body === "-" || !selectedLog.req_body ? (
-                  <span className="text-gray-600 italic">{i18n.t("trafficNoBody")}</span>
+                  <span className="text-gray-600 italic">{t("trafficNoBody")}</span>
                 ) : (
                   selectedLog.req_body
                 )}

@@ -7,9 +7,10 @@ import { QuickStartPanel, QuickStartSelection } from "./components/QuickStartPan
 import { TrafficInspector } from "./components/TrafficInspector";
 import { UpdateDialog } from "./components/UpdateDialog";
 import { api, AppSettings, CaStatus, DomainStatus, NginxInfo } from "./lib/tauri";
-import { i18n, getLocale, setLocale as setI18nLocale, SUPPORTED_LOCALES, SupportedLocale } from "./translation";
+import { useI18n, SupportedLocale } from "./translation";
 
 function App() {
+  const { t, locale, setLocale, locales } = useI18n();
   const [domains, setDomains] = useState<DomainStatus[]>([]);
   const [caStatus, setCaStatus] = useState<CaStatus | null>(null);
   const [nginxInfo, setNginxInfo] = useState<NginxInfo | null>(null);
@@ -38,14 +39,6 @@ function App() {
   const [stats, setStats] = useState<Record<string, { count: number; totalMs: number }>>({});
   const [caWarningDismissed, setCaWarningDismissed] = useState(false);
   const [dockerPanelFor, setDockerPanelFor] = useState<{ domain: string; projectPath: string } | null>(null);
-  const [locale, setLocale] = useState<SupportedLocale>(getLocale() as SupportedLocale);
-
-  const handleChangeLocale = (l: SupportedLocale) => {
-    setI18nLocale(l);
-    setLocale(l);
-  };
-
-  const t = i18n.t;
 
   const refresh = async () => {
     try {
@@ -82,7 +75,7 @@ function App() {
           delete next[event.payload.domain];
           return next;
         });
-        setError(`Tunnel [${event.payload.domain}]: ${event.payload.error}`);
+        setError(t("tunnelError", { domain: event.payload.domain, error: event.payload.error }));
       },
     );
     const unlistenTraffic = listen<{ host: string; latency: string }>(
@@ -215,10 +208,10 @@ function App() {
       const allOk = results.every((r) => r.ok);
       if (allOk) {
         setError(null);
-        alert(`AI skills installed into ${projectPath}`);
+        alert(t("aiSkillsInstalled", { path: projectPath }));
       } else {
         const failed = results.filter((r) => !r.ok).map((r) => r.target).join(", ");
-        setError(`Some skills failed: ${failed}`);
+        setError(t("aiSkillsFailed", { failed }));
       }
     } catch (err: any) {
       setError(String(err));
@@ -422,7 +415,7 @@ function App() {
             </h1>
             <p className="text-text-muted mt-2 text-sm">
               {t("headerSubtitle")} •{" "}
-              <span className="font-mono text-xs">v0.4.3</span>
+              <span className="font-mono text-xs">v0.4.4</span>
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -688,9 +681,9 @@ function App() {
                   </div>
                   <select
                     value={locale}
-                    onChange={(e) => handleChangeLocale(e.target.value as SupportedLocale)}
+                    onChange={(e) => setLocale(e.target.value as SupportedLocale)}
                     className="px-3 py-1.5 rounded-lg bg-surface border border-surface-3 text-text text-sm cursor-pointer focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all">
-                    {SUPPORTED_LOCALES.map((l) => (
+                    {locales.map((l) => (
                       <option key={l.value} value={l.value}>{l.label}</option>
                     ))}
                   </select>
@@ -993,7 +986,7 @@ function App() {
                             <>
                               <button
                                 onClick={() => handleOpenProjectFolder(d.config.project_path!)}
-                                title={`Mở thư mục: ${d.config.project_path}`}
+                                title={t("tooltipOpenFolder", { path: d.config.project_path! })}
                                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold text-text-muted bg-surface border border-surface-3/40 hover:text-accent hover:border-accent/40 hover:bg-accent/5 transition-all cursor-pointer">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
@@ -1002,35 +995,35 @@ function App() {
                               </button>
                               <button
                                 onClick={() => handleOpenProjectTerminal(d.config.project_path!)}
-                                title="Mở terminal tại thư mục dự án"
+                                title={t("tooltipOpenTerminal")}
                                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold text-text-muted bg-surface border border-surface-3/40 hover:text-accent hover:border-accent/40 hover:bg-accent/5 transition-all cursor-pointer">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
-                                Terminal
+                                {t("btnTerminal")}
                               </button>
                               <button
                                 onClick={() => setDockerPanelFor({ domain: d.config.domain, projectPath: d.config.project_path! })}
-                                title="Quản lý docker compose của dự án"
+                                title={t("tooltipDocker")}
                                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold text-text-muted bg-surface border border-surface-3/40 hover:text-accent hover:border-accent/40 hover:bg-accent/5 transition-all cursor-pointer">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 12h14M5 16h14M3 4h18a1 1 0 011 1v14a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1z" />
                                 </svg>
-                                Docker
+                                {t("btnDocker")}
                               </button>
                               <button
                                 onClick={() => handleInstallSkills(d.config.project_path!)}
-                                title="Cài AI skill (Claude, Gemini, Codex) vào dự án"
+                                title={t("tooltipAiSkill")}
                                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold text-text-muted bg-surface border border-surface-3/40 hover:text-purple-400 hover:border-purple-400/40 hover:bg-purple-400/5 transition-all cursor-pointer">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                                 </svg>
-                                AI Skill
+                                {t("btnAiSkill")}
                               </button>
                               {d.config.run_command && (
                                 <button
                                   onClick={() => handleOpenProjectTerminal(d.config.project_path!, d.config.run_command!)}
-                                  title={`Chạy: ${d.config.run_command}`}
+                                  title={t("tooltipRunCommand", { command: d.config.run_command! })}
                                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold text-white bg-success/80 hover:bg-success border border-success/30 transition-all cursor-pointer">
                                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -1101,8 +1094,7 @@ function App() {
                                 </button>
                               </div>
                               <span className="text-[10px] text-text-muted/60 italic">
-                                ⚠ Nếu không mở được, hãy đổi DNS sang 1.1.1.1
-                                hoặc bật Secure DNS
+                                {t("tunnelDnsHint")}
                               </span>
                             </>
                           )}

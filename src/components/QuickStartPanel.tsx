@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, PortInfo, ProjectInfo, Template } from "../lib/tauri";
-import { i18n } from "../translation";
+import { useI18n } from "../translation";
 
 export interface QuickStartSelection {
   domain: string;
@@ -18,6 +18,7 @@ interface Props {
 type TabKey = "templates" | "ports" | "projects";
 
 export function QuickStartPanel({ onPick }: Props) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<TabKey>("templates");
 
@@ -68,12 +69,12 @@ export function QuickStartPanel({ onPick }: Props) {
     }
   };
 
-  const pickTemplate = (t: Template) => {
+  const pickTemplate = (template: Template) => {
     onPick({
       domain: "",
-      upstream: t.default_upstream,
-      advancedConfig: t.advanced_config ?? "",
-      openEditor: !!t.advanced_config,
+      upstream: template.default_upstream,
+      advancedConfig: template.advanced_config ?? "",
+      openEditor: !!template.advanced_config,
     });
   };
 
@@ -117,8 +118,8 @@ export function QuickStartPanel({ onPick }: Props) {
 
   const templateCategories = useMemo(() => {
     const groups: Record<string, Template[]> = {};
-    for (const t of templates) {
-      (groups[t.category] ||= []).push(t);
+    for (const item of templates) {
+      (groups[item.category] ||= []).push(item);
     }
     return Object.entries(groups);
   }, [templates]);
@@ -132,9 +133,9 @@ export function QuickStartPanel({ onPick }: Props) {
           <svg className="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
-          <span className="text-sm font-semibold text-text">{i18n.t("quickStartTitle")}</span>
+          <span className="text-sm font-semibold text-text">{t("quickStartTitle")}</span>
           <span className="text-xs text-text-muted">
-            {i18n.t("quickStartSubtitle")}
+            {t("quickStartSubtitle")}
           </span>
         </div>
         <svg
@@ -157,9 +158,9 @@ export function QuickStartPanel({ onPick }: Props) {
                     ? "bg-surface text-text shadow-sm"
                     : "text-text-muted hover:text-text cursor-pointer"
                 }`}>
-                {k === "templates" && i18n.t("quickStartTabTemplates")}
-                {k === "ports" && i18n.t("quickStartTabPorts")}
-                {k === "projects" && i18n.t("quickStartTabProjects")}
+                {k === "templates" && t("quickStartTabTemplates")}
+                {k === "ports" && t("quickStartTabPorts")}
+                {k === "projects" && t("quickStartTabProjects")}
               </button>
             ))}
           </div>
@@ -168,34 +169,34 @@ export function QuickStartPanel({ onPick }: Props) {
             {tab === "templates" && (
               <div className="space-y-5">
                 <p className="text-xs text-text-muted">
-                  {i18n.t("quickStartTemplateDesc")}
+                  {t("quickStartTemplateDesc")}
                 </p>
                 {templates.length === 0 && (
-                  <p className="text-xs text-text-muted italic">{i18n.t("quickStartLoading")}</p>
+                  <p className="text-xs text-text-muted italic">{t("quickStartLoading")}</p>
                 )}
                 {templateCategories.map(([cat, items]) => (
                   <div key={cat}>
                     <h4 className="text-[11px] uppercase tracking-wider font-bold text-text-muted mb-2">{cat}</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                      {items.map((t) => (
+                      {items.map((item) => (
                         <button
-                          key={t.id}
-                          onClick={() => pickTemplate(t)}
+                          key={item.id}
+                          onClick={() => pickTemplate(item)}
                           className="text-left p-3 rounded-lg bg-surface border border-surface-3/40 hover:border-accent/40 hover:bg-accent/5 transition-all cursor-pointer group">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm font-semibold text-text group-hover:text-accent transition-colors">
-                              {t.name}
+                              {item.name}
                             </span>
-                            {t.advanced_config && (
+                            {item.advanced_config && (
                               <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-accent/10 text-accent border border-accent/20">
                                 WS
                               </span>
                             )}
                           </div>
                           <p className="text-[11px] text-text-muted font-mono truncate">
-                            {t.default_upstream.replace("http://127.0.0.1:", ":")}
+                            {item.default_upstream.replace("http://127.0.0.1:", ":")}
                           </p>
-                          <p className="text-[11px] text-text-muted/70 mt-1 line-clamp-2">{t.description}</p>
+                          <p className="text-[11px] text-text-muted/70 mt-1 line-clamp-2">{item.description}</p>
                         </button>
                       ))}
                     </div>
@@ -208,7 +209,7 @@ export function QuickStartPanel({ onPick }: Props) {
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs text-text-muted">
-                    {i18n.t("quickStartPortDesc")}
+                    {t("quickStartPortDesc")}
                   </p>
                   <div className="shrink-0 flex items-center gap-2">
                     <label className="flex items-center gap-1.5 text-[11px] text-text-muted cursor-pointer">
@@ -218,13 +219,13 @@ export function QuickStartPanel({ onPick }: Props) {
                         onChange={(e) => setHideSystemPorts(e.target.checked)}
                         className="accent-accent"
                       />
-                      Ẩn system / nginx
+                      {t("quickStartHideSystem")}
                     </label>
                     <button
                       onClick={handleScanPorts}
                       disabled={scanningPorts}
                       className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-accent text-white hover:bg-accent-hover disabled:opacity-50 cursor-pointer transition-all">
-                      {scanningPorts ? i18n.t("quickStartScanning") : ports ? i18n.t("quickStartRescan") : i18n.t("quickStartScanNow")}
+                      {scanningPorts ? t("quickStartScanning") : ports ? t("quickStartRescan") : t("quickStartScanNow")}
                     </button>
                   </div>
                 </div>
@@ -232,8 +233,8 @@ export function QuickStartPanel({ onPick }: Props) {
                 {ports !== null && visiblePorts.length === 0 && (
                   <p className="text-sm text-text-muted italic py-4 text-center bg-surface rounded-lg border border-dashed border-surface-3/40">
                     {ports.length === 0
-                      ? i18n.t("quickStartNoPort")
-                      : i18n.t("quickStartAllHidden")}
+                      ? t("quickStartNoPort")
+                      : t("quickStartAllHidden")}
                   </p>
                 )}
 
@@ -261,7 +262,7 @@ export function QuickStartPanel({ onPick }: Props) {
                           </div>
                         </div>
                         <span className="text-[10px] uppercase tracking-wider font-bold text-text-muted group-hover:text-accent shrink-0 ml-2">
-                          {i18n.t("quickStartUse")}
+                          {t("quickStartUse")}
                         </span>
                       </button>
                     ))}
@@ -273,7 +274,7 @@ export function QuickStartPanel({ onPick }: Props) {
             {tab === "projects" && (
               <div className="space-y-3">
                 <p className="text-xs text-text-muted">
-                  {i18n.t("quickStartProjectDesc")}
+                  {t("quickStartProjectDesc")}
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -288,7 +289,7 @@ export function QuickStartPanel({ onPick }: Props) {
                     onClick={handleScanProjects}
                     disabled={scanningProjects || !scanPath.trim()}
                     className="px-4 py-2 rounded-lg text-xs font-semibold bg-accent text-white hover:bg-accent-hover disabled:opacity-50 cursor-pointer transition-all">
-                    {scanningProjects ? i18n.t("quickStartScanning") : i18n.t("quickStartScan")}
+                    {scanningProjects ? t("quickStartScanning") : t("quickStartScan")}
                   </button>
                 </div>
 
@@ -300,7 +301,7 @@ export function QuickStartPanel({ onPick }: Props) {
 
                 {projects !== null && projects.length === 0 && !scanError && (
                   <p className="text-sm text-text-muted italic py-4 text-center bg-surface rounded-lg border border-dashed border-surface-3/40">
-                    {i18n.t("quickStartNoProject")}
+                    {t("quickStartNoProject")}
                   </p>
                 )}
 
@@ -327,6 +328,7 @@ function ProjectRow({
   project: ProjectInfo;
   onPick: (p: ProjectInfo) => void;
 }) {
+  const { t } = useI18n();
   const [terminalError, setTerminalError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"none" | "terminal" | "run">("none");
 
@@ -351,7 +353,7 @@ function ProjectRow({
         <button
           onClick={() => onPick(project)}
           className="min-w-0 flex-1 text-left cursor-pointer"
-          title="Tạo domain cho dự án này">
+          title={t("quickStartProjectCreateDomainTooltip")}>
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-text truncate">{project.name}</span>
             <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-accent/10 text-accent border border-accent/20 shrink-0">
@@ -372,7 +374,7 @@ function ProjectRow({
           <button
             onClick={() => openTerminal(false)}
             disabled={busy !== "none"}
-            title="Mở terminal tại thư mục dự án"
+            title={t("quickStartProjectOpenTerminalTooltip")}
             className="p-1.5 rounded-md text-text-muted hover:text-accent hover:bg-accent/10 border border-transparent hover:border-accent/20 transition-all cursor-pointer disabled:opacity-50">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -383,19 +385,19 @@ function ProjectRow({
             <button
               onClick={() => openTerminal(true)}
               disabled={busy !== "none"}
-              title={`Mở terminal và chạy: ${project.suggested_command}`}
+              title={t("quickStartProjectRunCommandTooltip", { command: project.suggested_command })}
               className="flex items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-semibold text-white bg-success/80 hover:bg-success border border-success/30 transition-all cursor-pointer disabled:opacity-50">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              {i18n.t("btnRun")}
+              {t("btnRun")}
             </button>
           )}
 
           <button
             onClick={() => onPick(project)}
-            title="Tạo domain"
+            title={t("quickStartProjectCreateTooltip")}
             className="px-2 py-1.5 rounded-md text-[11px] font-semibold text-accent bg-accent/10 border border-accent/20 hover:bg-accent hover:text-white transition-all cursor-pointer">
             +
           </button>

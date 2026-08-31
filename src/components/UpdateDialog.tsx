@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { i18n } from "../translation";
+import { useI18n } from "../translation";
 
 export function UpdateDialog() {
+  const { t } = useI18n();
   const [updateInfo, setUpdateInfo] = useState<Update | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [progress, setProgress] = useState<{ downloaded: number; total: number } | null>(null);
@@ -71,9 +72,9 @@ export function UpdateDialog() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-text mb-2">{i18n.t("updateTitle")}</h2>
+          <h2 className="text-xl font-bold text-text mb-2">{t("updateTitle")}</h2>
           <p className="text-text-muted mb-4">
-            HyperHost <span className="font-mono text-xs">{updateInfo.version}</span> {i18n.t("updateReady")}
+            HyperHost <span className="font-mono text-xs">{updateInfo.version}</span> {t("updateReady")}
           </p>
           
           {updateInfo.body && (
@@ -91,7 +92,7 @@ export function UpdateDialog() {
           {isUpdating && progress ? (
             <div className="mb-6">
               <div className="flex justify-between text-xs text-text-muted mb-2 font-mono">
-                <span>{i18n.t("updateDownloading")}</span>
+                <span>{t("updateDownloading")}</span>
                 <span>
                   {progress.total > 0
                     ? Math.round((progress.downloaded / progress.total) * 100)
@@ -115,7 +116,7 @@ export function UpdateDialog() {
               disabled={isUpdating}
               className="px-4 py-2 text-text-muted hover:text-text hover:bg-surface-3/50 rounded-lg transition-colors disabled:opacity-50"
             >
-              {i18n.t("updateLater")}
+              {t("updateLater")}
             </button>
             <button
               onClick={startUpdate}
@@ -128,10 +129,10 @@ export function UpdateDialog() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Đang cập nhật...
+                  {t("updateUpdating")}
                 </>
               ) : (
-                i18n.t("updateInstall")
+                t("updateInstall")
               )}
             </button>
           </div>

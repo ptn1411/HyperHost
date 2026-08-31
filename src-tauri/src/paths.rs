@@ -70,7 +70,7 @@ impl AppPaths {
         if !mime_types_path.exists() {
             std::fs::write(
                 &mime_types_path,
-                include_str!("../binaries/nginx-extracted/nginx-1.26.2/conf/mime.types"),
+                include_str!("../binaries/nginx-extracted/nginx-1.30.4/conf/mime.types"),
             )?;
         }
 
